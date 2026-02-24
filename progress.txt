@@ -13,6 +13,8 @@
 - `MemvidError` (in `src/error.rs`) has 40+ variants; each maps to a string code in `bindings/node/src/error.rs`
 - Feature-gated variants (e.g., `temporal_track`) require a passthrough feature in `bindings/node/Cargo.toml`
 - NAPI test runner outputs "Load Node-API ... failed" warnings — these are harmless when running `cargo test` outside Node.js
+- Each binding module gets its own file (e.g., `write.rs`) with `#[napi] impl JsMemvid` block; register via `pub mod write;` in `lib.rs`
+- NAPI `Buffer` auto-accepts JS `Buffer` and `Uint8Array`; `i64` maps to JS `bigint` for frame IDs
 
 ---
 
@@ -58,4 +60,18 @@
   - No explicit `Memvid::close()` in Rust — uses `Drop` which auto-commits if dirty; Node binding wraps in `Option` and calls `.take()` for explicit close
   - `MutexGuard<Option<Memvid>>` doesn't impl `Debug` (because `Memvid` doesn't) — use `match` instead of `.unwrap_err()` in tests
   - The `guard_memvid!` macro uses early `return Err(...)` so it only works in functions returning `napi::Result<T>`, not in closures — use `lock_inner()` for closures
+---
+
+## 2026-02-25 - US-004
+- Wrapped basic write operations: `putBytes`, `commit`, `commitSkipIndexes`, `finalizeIndexes`, `beginBatch`, `endBatch`
+- Files created/changed:
+  - `bindings/node/src/write.rs` — sync and async variants of `putBytes`, `commit`, `commitSkipIndexes`, `finalizeIndexes`; sync `beginBatchSync`/`endBatchSync`; `JsBatchOptions` object; 4 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod write;`
+- **Learnings for future iterations:**
+  - NAPI `Buffer` type auto-accepts both `Buffer` and `Uint8Array` from JavaScript — no special handling needed
+  - Frame IDs are `u64` in Rust but NAPI-RS `#[napi]` methods use `i64` for bigint interop (napi-rs maps `i64` to JS `bigint`)
+  - `Memvid::put_bytes(&mut self, &[u8]) -> Result<u64>` is the main write API; `Buffer` derefs to `&[u8]` via `AsRef`
+  - `Memvid::begin_batch(PutManyOpts)` / `end_batch()` for batch mode; `PutManyOpts` has fields: `compression_level`, `disable_auto_checkpoint`, `skip_sync`, `wal_pre_size_bytes`, etc.
+  - Pattern: each new binding module goes in its own file (e.g., `write.rs`), adds `#[napi] impl JsMemvid` block, and is registered via `pub mod write;` in `lib.rs`
+  - The `memvid-core --lib` tests have pre-existing failures on Windows due to Tantivy temp dir access contention that poisons a serial test mutex — unrelated to node bindings
 ---
