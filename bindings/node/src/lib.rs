@@ -1,5 +1,7 @@
 #![deny(clippy::all)]
 
+pub mod error;
+
 use napi_derive::napi;
 
 /// Returns the memvid-core version string.

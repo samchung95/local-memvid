@@ -15,5 +15,8 @@ memvid-core = { path = "../.." }
 napi = { version = "2", features = ["napi9"] }
 napi-derive = "2"
 
+[features]
+temporal_track = ["memvid-core/temporal_track"]
+
 [build-dependencies]
 napi-build = "2"
