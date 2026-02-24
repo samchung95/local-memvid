@@ -258,3 +258,21 @@
   - `SearchResponse` conversion is duplicated from `search.rs` to avoid making `from_search_response` pub — could be refactored to `pub(crate)` in future
   - All 98 binding tests pass (10 new for ask module)
 ---
+
+## 2026-02-25 - US-016
+- Wrapped sketch-based fast search: `buildAllSketchesSync`/`buildAllSketches`, `findSketchCandidatesSync`/`findSketchCandidates`, `hasSketches`, `sketchStats`
+- Files created/changed:
+  - `bindings/node/src/sketch.rs` — `JsSketchTrackStats` struct with `#[napi(object)]`, `variant_to_string()`/`parse_variant()` helpers, `from_sketch_track_stats()` converter, sync and async variants of `buildAllSketches`/`findSketchCandidates`, `hasSketches`/`sketchStats` methods, 8 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod sketch;`
+  - `prd.json` — marked US-016 as `passes: true`
+- **Learnings for future iterations:**
+  - `build_all_sketches(&mut self, SketchVariant) -> usize` takes `&mut self` — uses `guard.as_mut().unwrap()` for sync
+  - `find_sketch_candidates(&self, &str, Option<SketchSearchOptions>) -> Vec<SketchCandidate>` takes `&self` — uses `guard.as_ref().unwrap()` for read-only access
+  - `SketchVariant` has 3 variants (Small, Medium, Large) — accept as string and parse, default to Small for unknown strings
+  - `SketchTrackStats` fields (`entry_count`, `size_bytes`, `short_text_count`) are `u64` — use `f64` for JS since these can be large numbers but don't need bigint precision
+  - `SketchSearchOptions` has `Default` impl — use `..Default::default()` to fill in hamming_threshold and min_score when only overriding max_candidates
+  - `SketchCandidate.frame_id` is `FrameId` (u64) — map to `i64` for JS bigint interop, same pattern as other frame IDs
+  - The acceptance criteria asks for `findSketchCandidates` returning `bigint[]` (frame IDs) — simplified from full candidate objects since the sketch is a pre-filter before BM25/vector reranking
+  - `from_memvid_error` not needed for this module since sketch methods don't return `Result` (except through guard_memvid macro)
+  - All 106 binding tests pass (8 new for sketch module)
+---
