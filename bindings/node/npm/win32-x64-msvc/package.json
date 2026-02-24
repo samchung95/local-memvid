@@ -1,0 +1,13 @@
+{
+  "name": "@memvid/node-win32-x64-msvc",
+  "version": "0.1.0",
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "main": "memvid-node.win32-x64-msvc.node",
+  "files": ["memvid-node.win32-x64-msvc.node"],
+  "description": "Node.js bindings for memvid — win32 x64 msvc",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">= 10"
+  }
+}

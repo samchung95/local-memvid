@@ -4,7 +4,7 @@ use napi_derive::napi;
 use memvid_core::FrameRole;
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JsPutOptions
@@ -90,7 +90,9 @@ fn parse_frame_role(s: &str) -> napi::Result<FrameRole> {
         "extracted_image" => Ok(FrameRole::ExtractedImage),
         other => Err(napi::Error::new(
             napi::Status::InvalidArg,
-            format!("Invalid role '{other}': expected 'document', 'document_chunk', or 'extracted_image'"),
+            format!(
+                "Invalid role '{other}': expected 'document', 'document_chunk', or 'extracted_image'"
+            ),
         )),
     }
 }

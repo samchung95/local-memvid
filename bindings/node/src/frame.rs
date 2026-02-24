@@ -5,7 +5,7 @@ use napi_derive::napi;
 use memvid_core::{CanonicalEncoding, Frame, FrameId, FrameRole};
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JsFrame
@@ -159,10 +159,7 @@ mod tests {
     fn role_to_string_variants() {
         assert_eq!(role_to_string(FrameRole::Document), "document");
         assert_eq!(role_to_string(FrameRole::DocumentChunk), "document_chunk");
-        assert_eq!(
-            role_to_string(FrameRole::ExtractedImage),
-            "extracted_image"
-        );
+        assert_eq!(role_to_string(FrameRole::ExtractedImage), "extracted_image");
     }
 
     #[test]
@@ -221,8 +218,14 @@ mod tests {
         assert_eq!(js.title.as_deref(), Some("Test Frame"));
         assert_eq!(js.tags, vec!["tag1", "tag2"]);
         assert_eq!(js.labels, vec!["label1"]);
-        assert_eq!(js.extra_metadata.get("key1").map(|s| s.as_str()), Some("val1"));
-        assert_eq!(js.extra_metadata.get("key2").map(|s| s.as_str()), Some("val2"));
+        assert_eq!(
+            js.extra_metadata.get("key1").map(|s| s.as_str()),
+            Some("val1")
+        );
+        assert_eq!(
+            js.extra_metadata.get("key2").map(|s| s.as_str()),
+            Some("val2")
+        );
         assert_eq!(js.extra_metadata.len(), 2);
         assert_eq!(js.role, "document");
         assert_eq!(js.canonical_encoding, "zstd");

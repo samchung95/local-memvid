@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use memvid_core::{MemoryCard, MemoryCardBuilder, MemoryKind, Polarity};
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JsMemoryCard
@@ -122,9 +122,7 @@ impl JsMemvid {
             .collect::<napi::Result<Vec<_>>>()?;
         let mut guard = guard_memvid!(self);
         let mv = guard.as_mut().unwrap();
-        let ids = mv
-            .put_memory_cards(rust_cards)
-            .map_err(from_memvid_error)?;
+        let ids = mv.put_memory_cards(rust_cards).map_err(from_memvid_error)?;
         Ok(ids.into_iter().map(|id| id as i64).collect())
     }
 
@@ -139,9 +137,7 @@ impl JsMemvid {
         tokio::task::spawn_blocking(move || {
             let mut guard = lock_inner(&inner)?;
             let mv = guard.as_mut().unwrap();
-            let ids = mv
-                .put_memory_cards(rust_cards)
-                .map_err(from_memvid_error)?;
+            let ids = mv.put_memory_cards(rust_cards).map_err(from_memvid_error)?;
             Ok(ids.into_iter().map(|id| id as i64).collect())
         })
         .await
@@ -510,7 +506,10 @@ mod tests {
         let result = mv.put_memory_card_sync(js_card);
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("CLOSED"), "Expected CLOSED error, got: {err_msg}");
+        assert!(
+            err_msg.contains("CLOSED"),
+            "Expected CLOSED error, got: {err_msg}"
+        );
     }
 
     // -- US-012 query method tests -------------------------------------------
@@ -521,7 +520,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.get_current_memory_sync("user".to_string(), "slot".to_string()) {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }
@@ -532,7 +534,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.get_entity_memories_sync("user".to_string()) {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }
@@ -543,7 +548,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.get_memory_timeline_sync("user".to_string()) {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }
@@ -554,7 +562,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.get_preferences_sync("user".to_string()) {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }
@@ -565,7 +576,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.aggregate_memory_slot_sync("user".to_string(), "slot".to_string()) {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }
@@ -576,7 +590,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.memories_stats() {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }

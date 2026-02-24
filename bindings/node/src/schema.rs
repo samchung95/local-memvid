@@ -2,8 +2,8 @@ use napi_derive::napi;
 
 use memvid_core::{Cardinality, EntityKind, PredicateSchema, ValueType};
 
-use crate::memory::{to_memory_card, JsMemoryCard};
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memory::{JsMemoryCard, to_memory_card};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JsPredicateSchema
@@ -83,7 +83,11 @@ fn from_predicate_schema(schema: &PredicateSchema) -> JsPredicateSchema {
         id: schema.id.clone(),
         name: schema.name.clone(),
         description: schema.description.clone(),
-        domain: schema.domain.iter().map(|k| k.as_str().to_string()).collect(),
+        domain: schema
+            .domain
+            .iter()
+            .map(|k| k.as_str().to_string())
+            .collect(),
         range: value_type_to_string(&schema.range),
         range_entity_kind,
         range_enum_values,
@@ -357,7 +361,10 @@ mod tests {
             builtin: false,
         };
         match mv.register_schema_sync(schema) {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }
@@ -376,7 +383,10 @@ mod tests {
             event_date: None,
         };
         match mv.validate_card_sync(card) {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }
@@ -387,7 +397,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.set_schema_strict_sync(true) {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }
@@ -398,7 +411,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.infer_schemas_sync() {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }

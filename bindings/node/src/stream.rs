@@ -7,7 +7,7 @@ use napi_derive::napi;
 use memvid_core::FrameId;
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid};
 
 // ---------------------------------------------------------------------------
 // JsBlobReader — streaming reader for frame payloads
@@ -137,9 +137,7 @@ impl JsMemvid {
     pub fn blob_reader_by_uri_sync(&self, uri: String) -> napi::Result<JsBlobReader> {
         let mut guard = guard_memvid!(self);
         let mv = guard.as_mut().unwrap();
-        let reader = mv
-            .blob_reader_by_uri(&uri)
-            .map_err(from_memvid_error)?;
+        let reader = mv.blob_reader_by_uri(&uri).map_err(from_memvid_error)?;
         let len = reader.len() as i64;
         Ok(JsBlobReader {
             inner: Mutex::new(Some(reader)),

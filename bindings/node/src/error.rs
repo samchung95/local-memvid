@@ -185,9 +185,7 @@ mod tests {
 
     #[test]
     fn checksum_mismatch_maps_correctly() {
-        let err = MemvidError::ChecksumMismatch {
-            context: "footer",
-        };
+        let err = MemvidError::ChecksumMismatch { context: "footer" };
         assert_eq!(error_code(&err), "CHECKSUM_MISMATCH");
 
         let napi_err = from_memvid_error(err);
@@ -261,9 +259,7 @@ mod tests {
 
     #[test]
     fn catch_unwind_converts_memvid_error() {
-        let result: napi::Result<()> = catch_unwind_napi(|| {
-            Err(MemvidError::ClipNotEnabled)
-        });
+        let result: napi::Result<()> = catch_unwind_napi(|| Err(MemvidError::ClipNotEnabled));
         let err = result.unwrap_err();
         assert!(err.to_string().contains("[CLIP_NOT_ENABLED]"));
     }

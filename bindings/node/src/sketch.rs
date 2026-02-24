@@ -3,7 +3,7 @@ use napi_derive::napi;
 use memvid_core::SketchTrackStats;
 use memvid_core::SketchVariant;
 
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JsSketchTrackStats
@@ -88,11 +88,7 @@ impl JsMemvid {
     ///
     /// Returns an array of frame IDs (bigint) sorted by sketch score descending.
     #[napi(js_name = "findSketchCandidatesSync")]
-    pub fn find_sketch_candidates_sync(
-        &self,
-        query: String,
-        top_k: u32,
-    ) -> napi::Result<Vec<i64>> {
+    pub fn find_sketch_candidates_sync(&self, query: String, top_k: u32) -> napi::Result<Vec<i64>> {
         let guard = guard_memvid!(self);
         let mv = guard.as_ref().unwrap();
         let options = Some(memvid_core::SketchSearchOptions {

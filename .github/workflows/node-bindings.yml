@@ -1,0 +1,192 @@
+name: Node.js Bindings
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bindings/node/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - '.github/workflows/node-bindings.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'bindings/node/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - '.github/workflows/node-bindings.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish platform packages to npm'
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build:
+    name: Build - ${{ matrix.settings.target }}
+    runs-on: ${{ matrix.settings.host }}
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: memvid-node.linux-x64-gnu.node
+          - host: macos-13
+            target: x86_64-apple-darwin
+            artifact: memvid-node.darwin-x64.node
+          - host: macos-latest
+            target: aarch64-apple-darwin
+            artifact: memvid-node.darwin-arm64.node
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: memvid-node.win32-x64-msvc.node
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.settings.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ matrix.settings.target }}-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.settings.target }}-
+
+      - name: Install dependencies
+        working-directory: bindings/node
+        run: npm install
+
+      - name: Build native addon
+        working-directory: bindings/node
+        run: npx napi build --platform --release --target ${{ matrix.settings.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-${{ matrix.settings.target }}
+          path: bindings/node/${{ matrix.settings.artifact }}
+          if-no-files-found: error
+
+  smoke-test:
+    name: Smoke test - ${{ matrix.settings.host }}
+    needs: build
+    runs-on: ${{ matrix.settings.host }}
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - host: macos-13
+            target: x86_64-apple-darwin
+          - host: macos-latest
+            target: aarch64-apple-darwin
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: bindings/node
+        run: npm install
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bindings-${{ matrix.settings.target }}
+          path: bindings/node/
+
+      - name: Run smoke test
+        working-directory: bindings/node
+        run: node __test__/smoke.mjs
+
+  publish:
+    name: Publish to npm
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true'
+    needs: [build, smoke-test]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        working-directory: bindings/node
+        run: npm install
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: bindings/node/artifacts
+
+      - name: Move artifacts to npm directories
+        working-directory: bindings/node
+        run: npx napi artifacts
+
+      - name: Publish platform packages
+        working-directory: bindings/node
+        run: npx napi prepublish -t npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @memvid/node-linux-x64-gnu
+        working-directory: bindings/node/npm/linux-x64-gnu
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @memvid/node-darwin-x64
+        working-directory: bindings/node/npm/darwin-x64
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @memvid/node-darwin-arm64
+        working-directory: bindings/node/npm/darwin-arm64
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @memvid/node-win32-x64-msvc
+        working-directory: bindings/node/npm/win32-x64-msvc
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @memvid/node
+        working-directory: bindings/node
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -9,7 +9,7 @@ use memvid_core::enrichment_worker::{
 };
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JS types
@@ -300,10 +300,11 @@ impl JsMemvid {
         engine_version: String,
     ) -> napi::Result<bool> {
         let guard = guard_memvid!(self);
-        Ok(guard
-            .as_ref()
-            .unwrap()
-            .is_frame_enriched(frame_id as u64, &engine_kind, &engine_version))
+        Ok(guard.as_ref().unwrap().is_frame_enriched(
+            frame_id as u64,
+            &engine_kind,
+            &engine_version,
+        ))
     }
 
     /// Check if a frame has been enriched by a specific engine (async).
@@ -317,10 +318,11 @@ impl JsMemvid {
         let inner = Arc::clone(&self.inner);
         tokio::task::spawn_blocking(move || {
             let guard = lock_inner(&inner)?;
-            Ok(guard
-                .as_ref()
-                .unwrap()
-                .is_frame_enriched(frame_id as u64, &engine_kind, &engine_version))
+            Ok(guard.as_ref().unwrap().is_frame_enriched(
+                frame_id as u64,
+                &engine_kind,
+                &engine_version,
+            ))
         })
         .await
         .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?

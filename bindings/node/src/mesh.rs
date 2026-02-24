@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use memvid_core::{EntityKind, FollowResult, LinkType, MeshEdge, MeshNode};
 
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JsMeshNode
@@ -101,7 +101,13 @@ fn to_mesh_edge(js: &JsMeshEdge) -> MeshEdge {
     let confidence = js.confidence.unwrap_or(1.0) as f32;
     let frame_id = js.frame_id.unwrap_or(0) as u64;
 
-    MeshEdge::new(js.from_node as u64, js.to_node as u64, link, confidence, frame_id)
+    MeshEdge::new(
+        js.from_node as u64,
+        js.to_node as u64,
+        link,
+        confidence,
+        frame_id,
+    )
 }
 
 /// Convert a Rust `MeshEdge` reference into a `JsMeshEdge`.
@@ -577,7 +583,10 @@ mod tests {
         let result = mv.add_mesh_node_sync(node);
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("CLOSED"), "Expected CLOSED error, got: {err_msg}");
+        assert!(
+            err_msg.contains("CLOSED"),
+            "Expected CLOSED error, got: {err_msg}"
+        );
     }
 
     #[test]
@@ -586,7 +595,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.follow_sync("start".to_string(), "link".to_string(), 1) {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }
@@ -597,7 +609,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.find_entity_sync("test".to_string()) {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }
@@ -608,7 +623,10 @@ mod tests {
             inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         match mv.logic_mesh_stats() {
-            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Err(e) => assert!(
+                e.to_string().contains("CLOSED"),
+                "Expected CLOSED, got: {e}"
+            ),
             Ok(_) => panic!("Expected error for closed instance"),
         }
     }

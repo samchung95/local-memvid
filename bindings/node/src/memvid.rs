@@ -29,10 +29,7 @@ pub(crate) use guard_memvid;
 
 /// Helper to convert a `tokio::task::JoinError` into a NAPI error.
 fn join_error(e: tokio::task::JoinError) -> napi::Error {
-    napi::Error::new(
-        napi::Status::GenericFailure,
-        format!("[INTERNAL] {e}"),
-    )
+    napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}"))
 }
 
 /// JavaScript wrapper around [`memvid_core::Memvid`].
@@ -108,11 +105,10 @@ impl JsMemvid {
     /// Open an existing `.mv2` file for read-only access (async).
     #[napi(factory, js_name = "openReadOnly")]
     pub async fn open_read_only_async(path: String) -> napi::Result<JsMemvid> {
-        let mv =
-            tokio::task::spawn_blocking(move || memvid_core::Memvid::open_read_only(&path))
-                .await
-                .map_err(join_error)?
-                .map_err(from_memvid_error)?;
+        let mv = tokio::task::spawn_blocking(move || memvid_core::Memvid::open_read_only(&path))
+            .await
+            .map_err(join_error)?
+            .map_err(from_memvid_error)?;
         Ok(JsMemvid {
             inner: Arc::new(Mutex::new(Some(mv))),
         })
@@ -164,9 +160,9 @@ impl JsMemvid {
 pub(crate) fn lock_inner(
     inner: &Arc<Mutex<Option<memvid_core::Memvid>>>,
 ) -> napi::Result<MutexGuard<'_, Option<memvid_core::Memvid>>> {
-    let guard = inner.lock().map_err(|_| {
-        napi::Error::new(napi::Status::GenericFailure, "[INTERNAL] Mutex poisoned")
-    })?;
+    let guard = inner
+        .lock()
+        .map_err(|_| napi::Error::new(napi::Status::GenericFailure, "[INTERNAL] Mutex poisoned"))?;
     if guard.is_none() {
         return Err(napi::Error::new(
             napi::Status::GenericFailure,

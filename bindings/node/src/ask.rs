@@ -4,7 +4,7 @@ use memvid_core::types::ask::AskContextFragmentKind;
 use memvid_core::{AskMode, AskRequest, AskRetriever, VecEmbedder};
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 use crate::search::JsSearchResponse;
 
 // ---------------------------------------------------------------------------
@@ -144,7 +144,9 @@ pub struct JsAskContextFragment {
 }
 
 /// Convert a Rust `AskContextFragment` into the JS representation.
-fn from_ask_context_fragment(f: memvid_core::types::ask::AskContextFragment) -> JsAskContextFragment {
+fn from_ask_context_fragment(
+    f: memvid_core::types::ask::AskContextFragment,
+) -> JsAskContextFragment {
     JsAskContextFragment {
         rank: f.rank as u32,
         frame_id: f.frame_id as i64,
@@ -208,9 +210,7 @@ fn ask_retriever_to_string(r: &AskRetriever) -> String {
 }
 
 /// Convert a Rust `SearchResponse` into `JsSearchResponse` (re-uses logic from search module).
-fn search_response_to_js(
-    resp: memvid_core::types::search::SearchResponse,
-) -> JsSearchResponse {
+fn search_response_to_js(resp: memvid_core::types::search::SearchResponse) -> JsSearchResponse {
     use memvid_core::types::search::SearchEngineKind;
     let engine = match &resp.engine {
         SearchEngineKind::Tantivy => "tantivy".to_string(),

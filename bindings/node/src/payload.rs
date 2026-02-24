@@ -4,7 +4,7 @@ use napi_derive::napi;
 use memvid_core::FrameId;
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JsFrameContext — result of frameContext()
@@ -118,10 +118,7 @@ impl JsMemvid {
     /// Get the embedding vector for a frame (async).
     /// Returns a Promise resolving to Float32Array or null.
     #[napi(js_name = "frameEmbedding")]
-    pub async fn frame_embedding_async(
-        &self,
-        frame_id: i64,
-    ) -> napi::Result<Option<Float32Array>> {
+    pub async fn frame_embedding_async(&self, frame_id: i64) -> napi::Result<Option<Float32Array>> {
         let inner = self.inner.clone();
         tokio::task::spawn_blocking(move || {
             let mut guard = lock_inner(&inner)?;
@@ -138,11 +135,7 @@ impl JsMemvid {
     /// Extract contextual text from a frame for a given query (synchronous).
     /// Returns an object with `text` and `matchCount` fields.
     #[napi(js_name = "frameContextSync")]
-    pub fn frame_context_sync(
-        &self,
-        frame_id: i64,
-        query: String,
-    ) -> napi::Result<JsFrameContext> {
+    pub fn frame_context_sync(&self, frame_id: i64, query: String) -> napi::Result<JsFrameContext> {
         let mut guard = guard_memvid!(self);
         let mv = guard.as_mut().unwrap();
         let (text, match_count) = mv

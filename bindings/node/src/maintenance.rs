@@ -1,7 +1,7 @@
 use napi_derive::napi;
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // Helper: enum ↔ string via serde (all Rust enums have rename_all = "snake_case")
@@ -133,9 +133,12 @@ fn from_doctor_action_plan(a: &memvid_core::DoctorActionPlan) -> JsDoctorActionP
     JsDoctorActionPlan {
         action: enum_to_string(&a.action),
         required: a.required,
-        reasons: a.reasons.iter().map(|r| enum_to_string(r)).collect(),
+        reasons: a.reasons.iter().map(enum_to_string).collect(),
         note: a.note.clone(),
-        detail: a.detail.as_ref().and_then(|d| serde_json::to_string(d).ok()),
+        detail: a
+            .detail
+            .as_ref()
+            .and_then(|d| serde_json::to_string(d).ok()),
     }
 }
 
@@ -146,10 +149,7 @@ fn to_doctor_action_plan(a: &JsDoctorActionPlan) -> napi::Result<memvid_core::Do
         required: a.required,
         reasons: reasons?,
         note: a.note.clone(),
-        detail: a
-            .detail
-            .as_ref()
-            .and_then(|d| serde_json::from_str(d).ok()),
+        detail: a.detail.as_ref().and_then(|d| serde_json::from_str(d).ok()),
     })
 }
 
@@ -375,12 +375,10 @@ impl JsMemvid {
     /// Verify file integrity (async).
     #[napi(js_name = "verify")]
     pub async fn verify_async(path: String, deep: bool) -> napi::Result<JsVerificationReport> {
-        let report = tokio::task::spawn_blocking(move || {
-            memvid_core::Memvid::verify(&path, deep)
-        })
-        .await
-        .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?
-        .map_err(from_memvid_error)?;
+        let report = tokio::task::spawn_blocking(move || memvid_core::Memvid::verify(&path, deep))
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?
+            .map_err(from_memvid_error)?;
         Ok(from_verification_report(&report))
     }
 
@@ -388,10 +386,7 @@ impl JsMemvid {
 
     /// Run diagnostics and auto-heal (synchronous).
     #[napi(js_name = "doctorSync")]
-    pub fn doctor_sync(
-        path: String,
-        options: JsDoctorOptions,
-    ) -> napi::Result<JsDoctorReport> {
+    pub fn doctor_sync(path: String, options: JsDoctorOptions) -> napi::Result<JsDoctorReport> {
         let opts = to_doctor_options(&options);
         let report = memvid_core::Memvid::doctor(&path, opts).map_err(from_memvid_error)?;
         Ok(from_doctor_report(&report))
@@ -404,21 +399,16 @@ impl JsMemvid {
         options: JsDoctorOptions,
     ) -> napi::Result<JsDoctorReport> {
         let opts = to_doctor_options(&options);
-        let report = tokio::task::spawn_blocking(move || {
-            memvid_core::Memvid::doctor(&path, opts)
-        })
-        .await
-        .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?
-        .map_err(from_memvid_error)?;
+        let report = tokio::task::spawn_blocking(move || memvid_core::Memvid::doctor(&path, opts))
+            .await
+            .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?
+            .map_err(from_memvid_error)?;
         Ok(from_doctor_report(&report))
     }
 
     /// Generate a healing plan without applying it (synchronous).
     #[napi(js_name = "doctorPlanSync")]
-    pub fn doctor_plan_sync(
-        path: String,
-        options: JsDoctorOptions,
-    ) -> napi::Result<JsDoctorPlan> {
+    pub fn doctor_plan_sync(path: String, options: JsDoctorOptions) -> napi::Result<JsDoctorPlan> {
         let opts = to_doctor_options(&options);
         let plan = memvid_core::Memvid::doctor_plan(&path, opts).map_err(from_memvid_error)?;
         Ok(from_doctor_plan(&plan))
@@ -426,10 +416,7 @@ impl JsMemvid {
 
     /// Apply a previously generated healing plan (synchronous).
     #[napi(js_name = "doctorApplySync")]
-    pub fn doctor_apply_sync(
-        path: String,
-        plan: JsDoctorPlan,
-    ) -> napi::Result<JsDoctorReport> {
+    pub fn doctor_apply_sync(path: String, plan: JsDoctorPlan) -> napi::Result<JsDoctorReport> {
         let rust_plan = to_doctor_plan(&plan)?;
         let report =
             memvid_core::Memvid::doctor_apply(&path, rust_plan).map_err(from_memvid_error)?;

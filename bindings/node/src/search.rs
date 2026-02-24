@@ -3,7 +3,7 @@ use napi_derive::napi;
 use memvid_core::types::search::{SearchEngineKind, SearchRequest};
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JsSearchRequest
@@ -122,9 +122,7 @@ fn engine_kind_to_string(kind: &SearchEngineKind) -> String {
 }
 
 /// Convert a Rust `SearchResponse` into the JS representation.
-fn from_search_response(
-    resp: memvid_core::types::search::SearchResponse,
-) -> JsSearchResponse {
+fn from_search_response(resp: memvid_core::types::search::SearchResponse) -> JsSearchResponse {
     JsSearchResponse {
         query: resp.query,
         elapsed_ms: resp.elapsed_ms as f64,

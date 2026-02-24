@@ -7,7 +7,7 @@ use napi_derive::napi;
 use memvid_core::{DocumentFormat, ReaderHint, ReaderRegistry};
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JS types
@@ -72,14 +72,8 @@ fn format_from_filename(filename: &str) -> Option<DocumentFormat> {
 }
 
 /// Build a `ReaderHint` from the JS hint object + leading bytes.
-fn build_hint<'a>(
-    js: &'a JsReaderHint,
-    magic: &'a [u8],
-) -> ReaderHint<'a> {
-    let format = js
-        .filename
-        .as_deref()
-        .and_then(format_from_filename);
+fn build_hint<'a>(js: &'a JsReaderHint, magic: &'a [u8]) -> ReaderHint<'a> {
+    let format = js.filename.as_deref().and_then(format_from_filename);
     let mime = js.mime_type.as_deref();
     ReaderHint::new(mime, format)
         .with_uri(js.filename.as_deref())
@@ -161,7 +155,11 @@ impl JsReaderRegistry {
             mime_type: None,
         });
         let bytes: &[u8] = &data;
-        let magic = if bytes.len() >= 16 { &bytes[..16] } else { bytes };
+        let magic = if bytes.len() >= 16 {
+            &bytes[..16]
+        } else {
+            bytes
+        };
         let reader_hint = build_hint(&hint, magic);
 
         let registry = self.inner.lock().map_err(|_| {
@@ -175,7 +173,9 @@ impl JsReaderRegistry {
             )
         })?;
 
-        let output = reader.extract(bytes, &reader_hint).map_err(from_memvid_error)?;
+        let output = reader
+            .extract(bytes, &reader_hint)
+            .map_err(from_memvid_error)?;
         Ok(from_reader_output(output))
     }
 
@@ -211,7 +211,9 @@ impl JsReaderRegistry {
                 )
             })?;
 
-            let output = reader.extract(&bytes, &reader_hint).map_err(from_memvid_error)?;
+            let output = reader
+                .extract(&bytes, &reader_hint)
+                .map_err(from_memvid_error)?;
             Ok(from_reader_output(output))
         })
         .await

@@ -5,7 +5,7 @@ use napi_derive::napi;
 use memvid_core::types::TimelineQuery;
 
 use crate::error::from_memvid_error;
-use crate::memvid::{guard_memvid, lock_inner, JsMemvid};
+use crate::memvid::{JsMemvid, guard_memvid, lock_inner};
 
 // ---------------------------------------------------------------------------
 // JsTimelineQuery
