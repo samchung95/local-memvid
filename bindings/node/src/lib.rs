@@ -4,6 +4,7 @@ pub mod error;
 pub mod frame;
 pub mod memory;
 pub mod memvid;
+pub mod mesh;
 pub mod schema;
 pub mod payload;
 pub mod search;

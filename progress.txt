@@ -23,6 +23,8 @@
 - `BlobReader` implements `Read + Seek`; constructors are private — can only be created via `Memvid::blob_reader()` / `blob_reader_by_uri()`
 - NAPI-RS cannot easily create Node.js Readable streams from Rust (no `require()` access in native addon context); return a pull-based reader class instead and document Readable wrapping in JS
 - `MemoryCardBuilder` requires `source_frame_id` and `engine` even for JS API — use placeholder values (`source(0, None)`, `engine("node-api", "1.0.0")`) for user-facing card insertion
+- `LogicMeshStats` is exported from `types::mod.rs` but NOT re-exported from `lib.rs` — access via method return type or `memvid_core::types::LogicMeshStats`
+- `EntityKind::from_label("product")` maps to `Project` (not `Product`) — "product" is an alias for Project in the Rust crate
 
 ---
 
@@ -219,4 +221,21 @@
   - `set_schema_strict(&mut self, bool)` takes `&mut self`; `infer_schemas(&self)` takes `&self`
   - `to_memory_card()` in memory.rs was made `pub(crate)` for cross-module reuse — pattern for sharing converters between binding modules
   - All 76 binding tests pass (10 new for schema module)
+---
+
+## 2026-02-25 - US-014
+- Wrapped logic mesh entity graph operations: `JsMeshNode`, `JsMeshEdge`, `JsFollowResult`, `JsLogicMeshStats` structs with `#[napi(object)]`; sync and async variants of `addMeshNode`/`addMeshNodes`, `addMeshEdge`/`addMeshEdges`, `follow`, `findEntity`, `frameEntities`, `entitiesByKind`, `logicMeshStats`
+- Files created/changed:
+  - `bindings/node/src/mesh.rs` — all mesh JS types, converters (`to_mesh_node`, `from_mesh_node`, `to_mesh_edge`, `from_mesh_edge`, `from_follow_result`), sync/async methods on `JsMemvid`, 12 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod mesh;`
+  - `prd.json` — marked US-014 as `passes: true`
+- **Learnings for future iterations:**
+  - `MeshNode`, `MeshEdge`, `FollowResult` are in `memvid_core` (re-exported from `types::logic_mesh`); `LogicMeshStats` is in `types` module but NOT re-exported from `lib.rs` — access via `logic_mesh_stats()` return type
+  - `EntityKind::from_label("product")` maps to `Project` (not `Product`) — "product" is treated as an alias for `Project` in the Rust crate
+  - `MeshNode::new()` takes `(canonical_name, display_name, kind, confidence_f32, frame_id, byte_start, byte_len)` — byte spans default to (0, 0) for API-injected nodes
+  - All mesh query methods on `Memvid` take `&self` (not `&mut self`) — use `guard.as_ref().unwrap()` for read-only access
+  - Mesh mutation methods (`add_mesh_node`, `add_mesh_nodes`, `add_mesh_edge`, `add_mesh_edges`) take `&mut self` and don't return `Result` — they set `dirty = true` internally
+  - `LinkType::from_str()` supports many aliases ("manages" → Manager, "works_at" → Employer, etc.) and falls back to `Custom(String)` for unknown types
+  - `from_memvid_error` import not needed for mesh module since mutation methods return `()` not `Result`
+  - All 88 binding tests pass (12 new for mesh module)
 ---
