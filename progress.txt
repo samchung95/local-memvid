@@ -110,3 +110,17 @@
   - `#[napi(object)]` structs don't auto-derive `Debug` — use `match` pattern in tests instead of `.unwrap_err()` for Result types containing them
   - ACL fields (`acl_context`, `acl_enforcement_mode`) and temporal fields are not exposed in JS — use Rust defaults
 ---
+
+## 2026-02-25 - US-007
+- Wrapped timeline queries: `JsTimelineQuery`, `JsTimelineEntry`, `timelineSync`, `timeline`
+- Files created/changed:
+  - `bindings/node/src/timeline.rs` — `JsTimelineQuery` and `JsTimelineEntry` structs with `#[napi(object)]`, `to_timeline_query()` and `from_timeline_entry()` converters, `timelineSync`/`timeline` methods on `JsMemvid`, 6 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod timeline;`
+  - `prd.json` — marked US-007 as `passes: true`
+- **Learnings for future iterations:**
+  - `TimelineQuery.limit` is `Option<NonZeroU64>` in Rust — accept `Option<i64>` from JS and convert via `u64::try_from` + `NonZeroU64::new` (0 or negative → None)
+  - `TimelineEntry.child_frames` is `Vec<FrameId>` (u64) — map each to `i64` for JS bigint interop, same as frame_id
+  - `Memvid::timeline(&mut self, query: TimelineQuery) -> Result<Vec<TimelineEntry>>` is the core API
+  - `TimelineEntry` has a `#[cfg(feature = "temporal_track")] temporal` field — set to `None` in the converter for now, not exposed to JS
+  - Pattern continues: each binding module in its own file with `#[napi] impl JsMemvid` block, registered via `pub mod` in `lib.rs`
+---
