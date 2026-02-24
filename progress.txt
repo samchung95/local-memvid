@@ -22,6 +22,7 @@
 - Rust `u128` (e.g., `elapsed_ms`) maps to `f64` in JS since NAPI doesn't support u128
 - `BlobReader` implements `Read + Seek`; constructors are private — can only be created via `Memvid::blob_reader()` / `blob_reader_by_uri()`
 - NAPI-RS cannot easily create Node.js Readable streams from Rust (no `require()` access in native addon context); return a pull-based reader class instead and document Readable wrapping in JS
+- `MemoryCardBuilder` requires `source_frame_id` and `engine` even for JS API — use placeholder values (`source(0, None)`, `engine("node-api", "1.0.0")`) for user-facing card insertion
 
 ---
 
@@ -170,4 +171,21 @@
   - Pull-based `readChunk(size)` pattern works well: returns `Buffer` for data, `null` for EOF, throws on error — maps directly to Readable's `_read` protocol
   - `BlobReader::len()` returns `u64` — cast to `i64` for JS bigint-safe range; exposed as `length` getter
   - `std::io::Read::read()` returns `Ok(0)` at EOF — maps to returning `None` (null in JS) to signal stream end
+---
+
+## 2026-02-25 - US-011
+- Wrapped memory card CRUD operations: `JsMemoryCard`, `putMemoryCardSync`/`putMemoryCard`, `putMemoryCardsSync`/`putMemoryCards`, `memoryCardCount` getter, `clearMemoriesSync`/`clearMemories`
+- Files created/changed:
+  - `bindings/node/src/memory.rs` — `JsMemoryCard` struct with `#[napi(object)]`, `to_memory_card()` and `from_memory_card()` converters, sync and async variants of `putMemoryCard`, `putMemoryCards`, `clearMemories`, `memoryCardCount` getter, 6 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod memory;`
+  - `prd.json` — marked US-011 as `passes: true`
+- **Learnings for future iterations:**
+  - `MemoryCard` has many fields but the JS API only exposes the core fields (kind, entity, slot, value, polarity, event_date) — internal fields like source_frame_id, engine, confidence are set to defaults
+  - `MemoryCardBuilder` requires `source_frame_id` and `engine` — use placeholder values (`source(0, None)` and `engine("node-api", "1.0.0")`) since these are internal tracking fields
+  - `MemoryKind::from_str()` falls back to `Other` for unknown strings — no need for validation error handling
+  - `Polarity::from_str()` returns `Option<Polarity>` — `None` for unknown strings, only set polarity if valid
+  - `put_memory_card(&mut self, card)` and `put_memory_cards(&mut self, cards)` return `Result<MemoryCardId>` / `Result<Vec<MemoryCardId>>` — card IDs are `u64`, map to `i64` for JS bigint
+  - `clear_memories(&mut self)` has no return value — just returns `()`, wrap in `Ok(())` for napi
+  - `memory_card_count(&self)` takes `&self` not `&mut self` — use `guard.as_ref().unwrap()` for sync
+  - `from_memory_card()` helper marked `pub(crate)` with `#[allow(dead_code)]` — will be used by US-012 memory query module
 ---
