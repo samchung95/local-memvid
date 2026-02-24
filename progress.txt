@@ -20,6 +20,8 @@
 - For Rust structs with many fields, use `Option<T>` in JS `#[napi(object)]` structs so omitted fields get Rust defaults
 - `#[napi(object)]` structs don't derive `Debug` — use `match` pattern (not `.unwrap_err()`) for `Result<JsStruct, _>` in tests
 - Rust `u128` (e.g., `elapsed_ms`) maps to `f64` in JS since NAPI doesn't support u128
+- `BlobReader` implements `Read + Seek`; constructors are private — can only be created via `Memvid::blob_reader()` / `blob_reader_by_uri()`
+- NAPI-RS cannot easily create Node.js Readable streams from Rust (no `require()` access in native addon context); return a pull-based reader class instead and document Readable wrapping in JS
 
 ---
 
@@ -153,4 +155,19 @@
   - `frame_context(&mut self, FrameId, &str) -> Result<(String, usize)>` — returns tuple of (text, match_count); wrap in `JsFrameContext` object for JS
   - All frame payload methods take `&mut self` (unlike `frame_by_id` which takes `&self`) — use `guard.as_mut().unwrap()` for sync, `guard.as_mut().unwrap()` in `lock_inner` closures for async
   - Pattern: result objects like `JsFrameContext` that are simple enough don't need separate converter functions — construct inline
+---
+
+## 2026-02-25 - US-010
+- Wrapped blobReader as streaming reader: `JsBlobReader` class with `readChunk`, `length`, `close`; `blobReader`/`blobReaderByUri` methods on `JsMemvid`
+- Files created/changed:
+  - `bindings/node/src/stream.rs` — `JsBlobReader` struct wrapping `Mutex<Option<BlobReader>>`, `readChunk(size)` returning `Buffer | null`, `length` getter, `close()` method, `blobReader(frameId)`/`blobReaderByUri(uri)` sync methods on `JsMemvid`, 6 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod stream;`
+  - `prd.json` — marked US-010 as `passes: true`
+- **Learnings for future iterations:**
+  - `BlobReader` wraps either a cloned `File` handle (for `Plain` encoding) or an in-memory `Cursor<Vec<u8>>` (for `Zstd`); both are `Send`
+  - `BlobReader::from_file` / `from_memory` constructors are `pub(crate)` — cannot create BlobReader directly in unit tests; test via closed-instance patterns
+  - NAPI-RS has no built-in Node.js Readable stream support; `require('stream')` is inaccessible from native addon context (module-scope variable, not on globalThis)
+  - Pull-based `readChunk(size)` pattern works well: returns `Buffer` for data, `null` for EOF, throws on error — maps directly to Readable's `_read` protocol
+  - `BlobReader::len()` returns `u64` — cast to `i64` for JS bigint-safe range; exposed as `length` getter
+  - `std::io::Read::read()` returns `Ok(0)` at EOF — maps to returning `None` (null in JS) to signal stream end
 ---

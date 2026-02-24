@@ -5,6 +5,7 @@ pub mod frame;
 pub mod memvid;
 pub mod payload;
 pub mod search;
+pub mod stream;
 pub mod timeline;
 pub mod write;
 
