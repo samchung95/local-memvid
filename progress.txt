@@ -124,3 +124,18 @@
   - `TimelineEntry` has a `#[cfg(feature = "temporal_track")] temporal` field — set to `None` in the converter for now, not exposed to JS
   - Pattern continues: each binding module in its own file with `#[napi] impl JsMemvid` block, registered via `pub mod` in `lib.rs`
 ---
+
+## 2026-02-25 - US-008
+- Wrapped frame metadata access: `JsFrame`, `frameByIdSync`/`frameById`, `frameByUriSync`/`frameByUri`, `frameCount` getter, `nextFrameId` getter
+- Files created/changed:
+  - `bindings/node/src/frame.rs` — `JsFrame` struct with `#[napi(object)]`, `from_frame()` converter, `role_to_string()`/`encoding_to_string()` helpers, sync/async variants of `frameById`/`frameByUri`, `frameCount`/`nextFrameId` getters, 8 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod frame;`
+  - `prd.json` — marked US-008 as `passes: true`
+- **Learnings for future iterations:**
+  - `Memvid::frame_by_id(&self, FrameId)` and `frame_by_uri(&self, &str)` take `&self` (not `&mut self`) — use `guard.as_ref().unwrap()` for sync, and `guard.as_ref().unwrap()` in `lock_inner` closures for async
+  - `Frame` struct has 29 fields but the JS `JsFrame` only exposes the most useful subset: id, timestamp, kind, track, uri, title, tags, labels, extra_metadata, role, canonical_encoding, search_text
+  - `BTreeMap<String, String>` (extra_metadata) converts to `HashMap<String, String>` for NAPI which maps to `Record<string, string>` in TypeScript
+  - `FrameRole`, `CanonicalEncoding` enums converted to lowercase strings matching serde `rename_all = "snake_case"` convention
+  - `frame_count()` returns `usize` — cast to `u32` for JS `number`; `next_frame_id()` returns `u64` — cast to `i64` for JS `bigint`
+  - Don't import types only used in tests into the main module — use `use memvid_core::FrameStatus;` inside `mod tests` block instead
+---

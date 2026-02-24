@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 
 pub mod error;
+pub mod frame;
 pub mod memvid;
 pub mod search;
 pub mod timeline;
