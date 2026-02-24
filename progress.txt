@@ -30,6 +30,8 @@
 - `start_enrichment_worker` takes `Arc<Mutex<Memvid>>` (not `Option<Memvid>`) — for JsMemvid, use `run_worker_loop` directly with closures that handle `Option::None`
 - `EnrichmentWorkerHandle`, `run_worker_loop`, `TaskResult` are in `pub mod enrichment_worker` — accessible externally even if not re-exported from `lib.rs`
 - `tracing` is not a dep of `memvid-node` — use `let _ = expr;` instead of `tracing::warn!`
+- `serde_json = "1"` is a direct dep of `memvid-node` for converting `serde_json::Value` metadata to JS-compatible types
+- `ReaderRegistry` has no top-level `extract` — use `find_reader(&hint)` then `reader.extract(bytes, &hint)`
 
 ---
 
@@ -295,4 +297,25 @@
   - `EnrichmentWorkerStats` fields are `u64`/`usize` — map to `f64` for JS (same pattern as sketch stats)
   - `tracing` crate is not a dependency of `memvid-node` — use `let _ = expr;` to silently discard errors instead of `tracing::warn!`
   - All 115 binding tests pass (10 new for enrichment module)
+---
+
+## 2026-02-25 - US-018
+- Wrapped document reader registry and built-in readers: `JsReaderRegistry` class with `newDefault()` factory, `extractSync`/`extract` methods; `JsReaderOutput`, `JsReaderHint`, `JsReaderDiagnostics` structs; `previewChunksSync`/`previewChunks` methods on `JsMemvid`
+- Files created/changed:
+  - `bindings/node/src/reader.rs` — `JsReaderRegistry` class wrapping `Arc<Mutex<ReaderRegistry>>`, `JsReaderOutput`/`JsReaderHint`/`JsReaderDiagnostics` structs with `#[napi(object)]`, `format_from_filename()` helper, `build_hint()` to construct `ReaderHint` from JS hint + magic bytes, `metadata_to_map()` for serde_json::Value to HashMap conversion, `from_reader_output()` converter, sync/async `extract` methods on registry, sync/async `previewChunks` on JsMemvid, 12 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod reader;`
+  - `bindings/node/Cargo.toml` — added `serde_json = "1"` dependency for metadata conversion
+  - `prd.json` — marked US-018 as `passes: true`
+- **Learnings for future iterations:**
+  - `ReaderRegistry` is `Send + Sync` (all `DocumentReader` impls are `Send + Sync`) — safe to wrap in `Arc<Mutex<>>` for async
+  - `ReaderRegistry::default()` registers 6 built-in readers: PdfReader, DocxReader, XlsxReader, XlsReader, PptxReader, PassthroughReader
+  - `ReaderRegistry` has no top-level `extract` method — use `find_reader(&hint)` to get a reader, then call `reader.extract(bytes, &hint)`
+  - `ReaderHint` uses lifetimes (`<'a>`) for zero-copy slices — build it locally from owned JS strings using borrows
+  - `ReaderOutput.document.metadata` is `serde_json::Value` — flatten to `HashMap<String, String>` for JS by stringifying non-string values
+  - `ExtractedDocument.text` is `Option<String>` — use `.unwrap_or_default()` for JS since null text is rare and empty string is more ergonomic
+  - `ReaderOutput.document.mime_type` is the detected format — use as the `format` field in JS output
+  - `preview_chunks(&self, &[u8]) -> Option<Vec<String>>` takes `&self` not `&mut self` — use `guard.as_ref().unwrap()`
+  - Added `serde_json = "1"` as direct dependency for `metadata_to_map()` — memvid-core re-exports `serde_json::Value` in its types but the crate itself needs the import
+  - `PassthroughReader` (registered last) acts as fallback for text/markdown/html/unknown formats — extract with no format hint will use it
+  - All 127 binding tests pass (12 new for reader module)
 ---

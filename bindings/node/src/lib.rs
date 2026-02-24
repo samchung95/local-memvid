@@ -9,6 +9,7 @@ pub mod memvid;
 pub mod mesh;
 pub mod schema;
 pub mod payload;
+pub mod reader;
 pub mod search;
 pub mod sketch;
 pub mod stream;
