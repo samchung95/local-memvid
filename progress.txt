@@ -139,3 +139,18 @@
   - `frame_count()` returns `usize` — cast to `u32` for JS `number`; `next_frame_id()` returns `u64` — cast to `i64` for JS `bigint`
   - Don't import types only used in tests into the main module — use `use memvid_core::FrameStatus;` inside `mod tests` block instead
 ---
+
+## 2026-02-25 - US-009
+- Wrapped frame payload and text retrieval: `frameCanonicalPayload`, `frameTextById`, `framePreviewById`, `frameEmbedding`, `frameContext`
+- Files created/changed:
+  - `bindings/node/src/payload.rs` — `JsFrameContext` struct with `#[napi(object)]`, sync and async variants of all 5 methods, 6 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod payload;`
+  - `prd.json` — marked US-009 as `passes: true`
+- **Learnings for future iterations:**
+  - `frame_canonical_payload(&mut self, FrameId) -> Result<Vec<u8>>` — returns raw bytes, convert to `Buffer` via `.into()`
+  - `frame_text_by_id` returns full text (no truncation), `frame_preview_by_id` returns truncated preview — different use cases
+  - `frame_embedding(&mut self, FrameId) -> Result<Option<Vec<f32>>>` — returns None if vec index not enabled; map `Vec<f32>` to `Float32Array::new(vec)`
+  - `frame_context(&mut self, FrameId, &str) -> Result<(String, usize)>` — returns tuple of (text, match_count); wrap in `JsFrameContext` object for JS
+  - All frame payload methods take `&mut self` (unlike `frame_by_id` which takes `&self`) — use `guard.as_mut().unwrap()` for sync, `guard.as_mut().unwrap()` in `lock_inner` closures for async
+  - Pattern: result objects like `JsFrameContext` that are simple enough don't need separate converter functions — construct inline
+---

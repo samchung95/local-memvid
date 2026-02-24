@@ -3,6 +3,7 @@
 pub mod error;
 pub mod frame;
 pub mod memvid;
+pub mod payload;
 pub mod search;
 pub mod timeline;
 pub mod write;
