@@ -1,10 +1,18 @@
 ## Codebase Patterns
 - Rust toolchain 1.90.0 with edition 2024; cargo is at `~/.cargo/bin/cargo.exe` and must be added to PATH in bash
 - Root crate is `memvid-core` (package name); workspace members listed in root Cargo.toml `[workspace]` section
-- NAPI-RS v2 used for Node.js bindings (napi = "2", napi-derive = "2", napi-build = "2")
+- NAPI-RS v2 used for Node.js bindings (napi = "2" with features ["napi9", "tokio_rt"], napi-derive = "2", napi-build = "2")
+- Async NAPI methods use `tokio::task::spawn_blocking` for blocking Rust calls; requires `tokio = { version = "1", features = ["rt"] }` in Cargo.toml
+- `JsMemvid` wraps `Arc<Mutex<Option<Memvid>>>` — `guard_memvid!` macro checks for None (CLOSED) and poisoned mutex (INTERNAL)
+- `Memvid` is `Send` — safe to move across threads via `spawn_blocking`
+- `pub(crate) use guard_memvid;` re-exports the macro for use in sibling modules
+- `lock_inner()` function in `memvid.rs` provides non-macro guard for closures where `return Err` doesn't work
 - The `MEMVID_CORE_VERSION` constant in `src/lib.rs` provides the version string
 - Default features for memvid-core: `lex`, `pdf_extract`, `simd`
 - All 335 lib tests pass with `cargo test -p memvid-core --lib`
+- `MemvidError` (in `src/error.rs`) has 40+ variants; each maps to a string code in `bindings/node/src/error.rs`
+- Feature-gated variants (e.g., `temporal_track`) require a passthrough feature in `bindings/node/Cargo.toml`
+- NAPI test runner outputs "Load Node-API ... failed" warnings — these are harmless when running `cargo test` outside Node.js
 
 ---
 
@@ -22,4 +30,32 @@
   - napi-build v2 requires a `build.rs` with `napi_build::setup()`
   - `cargo check -p memvid-node` and `cargo check -p memvid-core` both pass — workspace doesn't break existing crate
   - All 335 existing tests still pass after workspace conversion
+---
+
+## 2026-02-25 - US-002
+- Implemented `NapiMemvidError` struct and error code mapping in `bindings/node/src/error.rs`
+- Files created/changed:
+  - `bindings/node/src/error.rs` — `NapiMemvidError` struct, `error_code()` mapping all 40+ `MemvidError` variants to string codes, `error_path()` extractor, `from_memvid_error()` conversion, `catch_unwind_napi()` panic catcher, 10 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod error;`
+  - `bindings/node/Cargo.toml` — added `[features] temporal_track = ["memvid-core/temporal_track"]` passthrough
+- **Learnings for future iterations:**
+  - `MemvidError` has ~40 variants in `src/error.rs`; string codes like `IO`, `LOCKED`, `CHECKSUM_MISMATCH`, etc.
+  - Feature-gated enum variants (e.g., `#[cfg(feature = "temporal_track")]`) need matching passthrough features in bindings crate Cargo.toml
+  - `napi::Error::new(Status::GenericFailure, msg)` is the standard way to throw JS errors from Rust
+  - `catch_unwind` requires the closure to be `UnwindSafe` — `std::panic::catch_unwind` works for pure Rust code; for closures capturing references use `AssertUnwindSafe`
+  - NAPI test runner produces "Load Node-API" warnings outside Node.js but tests run fine
+---
+
+## 2026-02-25 - US-003
+- Implemented `JsMemvid` lifecycle wrapper in `bindings/node/src/memvid.rs`
+- Files created/changed:
+  - `bindings/node/src/memvid.rs` — `JsMemvid` struct wrapping `Arc<Mutex<Option<Memvid>>>`, sync and async factory methods (`createSync`/`create`, `openSync`/`open`, `openReadOnlySync`/`openReadOnly`), `close()`, `isReadOnly`/`path` getters, `guard_memvid!` macro, `lock_inner()` helper, 3 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod memvid;`
+  - `bindings/node/Cargo.toml` — added `tokio_rt` feature to napi, added `tokio` dependency with `rt` feature
+- **Learnings for future iterations:**
+  - `Memvid` is `Send` — all its fields (File, PathBuf, FileLock, Arc<RwLock<...>>, etc.) are Send-safe
+  - NAPI-RS async factory methods: use `#[napi(factory, js_name = "create")]` + `async fn` — napi-rs handles Promise creation automatically
+  - No explicit `Memvid::close()` in Rust — uses `Drop` which auto-commits if dirty; Node binding wraps in `Option` and calls `.take()` for explicit close
+  - `MutexGuard<Option<Memvid>>` doesn't impl `Debug` (because `Memvid` doesn't) — use `match` instead of `.unwrap_err()` in tests
+  - The `guard_memvid!` macro uses early `return Err(...)` so it only works in functions returning `napi::Result<T>`, not in closures — use `lock_inner()` for closures
 ---

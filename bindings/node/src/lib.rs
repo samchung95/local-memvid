@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 
 pub mod error;
+pub mod memvid;
 
 use napi_derive::napi;
 
