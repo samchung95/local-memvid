@@ -18,6 +18,8 @@
 - NAPI `Float32Array` from `napi::bindgen_prelude` maps to JS `Float32Array`; use `.to_vec()` to get `Vec<f32>`
 - `FrameRole` has 3 variants: `Document`, `DocumentChunk`, `ExtractedImage` — re-exported from `memvid_core::FrameRole`
 - For Rust structs with many fields, use `Option<T>` in JS `#[napi(object)]` structs so omitted fields get Rust defaults
+- `#[napi(object)]` structs don't derive `Debug` — use `match` pattern (not `.unwrap_err()`) for `Result<JsStruct, _>` in tests
+- Rust `u128` (e.g., `elapsed_ms`) maps to `f64` in JS since NAPI doesn't support u128
 
 ---
 
@@ -90,4 +92,21 @@
   - `Float32Array` from `napi::bindgen_prelude` auto-maps to JS `Float32Array`; use `.to_vec()` to get `Vec<f32>`
   - `Memvid::delete_frame(frame_id) -> Result<u64>` returns the tombstone frame's sequence ID
   - `beginBatchSync` / `endBatchSync` were already implemented in US-004 — the US-005 acceptance criteria mentioning them was already satisfied
+---
+
+## 2026-02-25 - US-006
+- Wrapped search with SearchRequest and SearchResponse types
+- Files created/changed:
+  - `bindings/node/src/search.rs` — `JsSearchRequest`, `JsSearchHit`, `JsSearchResponse` structs with `#[napi(object)]`; `to_search_request()` and `from_search_hit()`/`from_search_response()` converters; `searchSync`/`search` methods on `JsMemvid`; 6 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod search;`
+  - `prd.json` — marked US-006 as `passes: true`
+- **Learnings for future iterations:**
+  - `SearchRequest` has no `Default` impl — must construct all fields manually; use sensible defaults (top_k=10, snippet_chars=200)
+  - `SearchEngineKind` enum maps to strings: `tantivy`, `lex_fallback`, `hybrid`
+  - `elapsed_ms` is `u128` in Rust — use `f64` for JS since NAPI doesn't support u128 natively
+  - `SearchHit.matches` (usize) maps to `matchCount` (u32) in JS for clarity
+  - `SearchHit.score` is `Option<f32>` in Rust, widened to `Option<f64>` for JS
+  - `SearchRequest` requires `#[cfg(feature = "lex")]` — enabled by default via memvid-core default features
+  - `#[napi(object)]` structs don't auto-derive `Debug` — use `match` pattern in tests instead of `.unwrap_err()` for Result types containing them
+  - ACL fields (`acl_context`, `acl_enforcement_mode`) and temporal fields are not exposed in JS — use Rust defaults
 ---

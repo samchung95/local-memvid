@@ -2,6 +2,7 @@
 
 pub mod error;
 pub mod memvid;
+pub mod search;
 pub mod write;
 
 use napi_derive::napi;
