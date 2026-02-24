@@ -1,0 +1,25 @@
+## Codebase Patterns
+- Rust toolchain 1.90.0 with edition 2024; cargo is at `~/.cargo/bin/cargo.exe` and must be added to PATH in bash
+- Root crate is `memvid-core` (package name); workspace members listed in root Cargo.toml `[workspace]` section
+- NAPI-RS v2 used for Node.js bindings (napi = "2", napi-derive = "2", napi-build = "2")
+- The `MEMVID_CORE_VERSION` constant in `src/lib.rs` provides the version string
+- Default features for memvid-core: `lex`, `pdf_extract`, `simd`
+- All 335 lib tests pass with `cargo test -p memvid-core --lib`
+
+---
+
+## 2026-02-25 - US-001
+- Scaffolded NAPI-RS project under `bindings/node/`
+- Files created:
+  - `bindings/node/Cargo.toml` — crate `memvid-node`, cdylib, depends on memvid-core + napi v2
+  - `bindings/node/build.rs` — napi_build::setup()
+  - `bindings/node/src/lib.rs` — minimal `#[napi] pub fn version() -> String`
+  - `bindings/node/package.json` — `@memvid/node`, napi targets for linux-x64-gnu, darwin-x64, darwin-arm64, win32-x64-msvc
+  - `bindings/node/.gitignore` — excludes *.node, target/, node_modules/, generated index.js/index.d.ts
+- Root `Cargo.toml` updated: added `[workspace] members = ["bindings/node"]`
+- **Learnings for future iterations:**
+  - Workspace setup: just add `[workspace]` with `members` above the existing `[package]` — the root crate is implicitly a member
+  - napi-build v2 requires a `build.rs` with `napi_build::setup()`
+  - `cargo check -p memvid-node` and `cargo check -p memvid-core` both pass — workspace doesn't break existing crate
+  - All 335 existing tests still pass after workspace conversion
+---
