@@ -203,3 +203,20 @@
   - `from_memory_card()` was already prepared in US-011 as `pub(crate)` — removed `#[allow(dead_code)]` now that it's actively used
   - Pattern confirmed: use `match` instead of `.unwrap_err()` in tests for `Result<T, _>` where `T` contains `#[napi(object)]` structs (no `Debug` impl)
 ---
+
+## 2026-02-25 - US-013
+- Wrapped memory card schema operations: `JsPredicateSchema`, `JsValidationResult`, `registerSchemaSync`/`registerSchema`, `validateCardSync`/`validateCard`, `setSchemaStrictSync`, `inferSchemasSync`/`inferSchemas`
+- Files created/changed:
+  - `bindings/node/src/schema.rs` — `JsPredicateSchema` and `JsValidationResult` structs with `#[napi(object)]`, `from_predicate_schema()`/`to_predicate_schema()` converters, sync and async variants of all methods, 10 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod schema;`
+  - `bindings/node/src/memory.rs` — changed `to_memory_card()` visibility from private to `pub(crate)` for reuse in schema module
+  - `prd.json` — marked US-013 as `passes: true`
+- **Learnings for future iterations:**
+  - `PredicateSchema` has 8 fields: id, name, description, domain, range, cardinality, inverse, builtin
+  - `ValueType` is a tagged enum with 7 variants — for JS, flatten into `range` (string tag) + `range_entity_kind` + `range_enum_values` optional fields
+  - `EntityKind` has 11 variants (Person, Organization, Project, Email, Date, Location, Product, Event, Money, Url, Other) — use `EntityKind::from_label()` to parse from strings
+  - `validate_card(&self, &MemoryCard) -> Result<(), SchemaError>` returns `SchemaError` (not `MemvidError`) — map to `{ valid: false, error: string }` instead of throwing
+  - `set_schema_strict(&mut self, bool)` takes `&mut self`; `infer_schemas(&self)` takes `&self`
+  - `to_memory_card()` in memory.rs was made `pub(crate)` for cross-module reuse — pattern for sharing converters between binding modules
+  - All 76 binding tests pass (10 new for schema module)
+---

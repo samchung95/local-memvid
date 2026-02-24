@@ -34,7 +34,7 @@ pub struct JsMemoryCard {
 }
 
 /// Convert a `JsMemoryCard` into a Rust `MemoryCard` via the builder.
-fn to_memory_card(js: JsMemoryCard) -> napi::Result<MemoryCard> {
+pub(crate) fn to_memory_card(js: JsMemoryCard) -> napi::Result<MemoryCard> {
     let kind = MemoryKind::from_str(&js.kind);
 
     let mut builder = MemoryCardBuilder::new()
