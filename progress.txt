@@ -189,3 +189,17 @@
   - `memory_card_count(&self)` takes `&self` not `&mut self` — use `guard.as_ref().unwrap()` for sync
   - `from_memory_card()` helper marked `pub(crate)` with `#[allow(dead_code)]` — will be used by US-012 memory query module
 ---
+
+## 2026-02-25 - US-012
+- Wrapped memory card query methods: `getCurrentMemorySync`/`getCurrentMemory`, `getEntityMemoriesSync`/`getEntityMemories`, `getMemoryTimelineSync`/`getMemoryTimeline`, `getPreferencesSync`/`getPreferences`, `aggregateMemorySlotSync`/`aggregateMemorySlot`, `memoriesStats`
+- Files changed:
+  - `bindings/node/src/memory.rs` — added `JsMemoriesStats` struct with `#[napi(object)]`, sync and async variants of all 5 query methods plus `memoriesStats` getter, removed `#[allow(dead_code)]` from `from_memory_card()`, 6 new unit tests (total 67 passing)
+  - `prd.json` — marked US-012 as `passes: true`
+- **Learnings for future iterations:**
+  - All memory query methods on `Memvid` take `&self` (not `&mut self`) — use `guard.as_ref().unwrap()` for sync, same in `lock_inner` closures for async
+  - `MemoriesStats` fields: `card_count`, `entity_count`, `slot_count` (all `usize`), `cards_by_kind` (`HashMap<String, usize>`), `enriched_frames` (`usize`), `last_enrichment` (`Option<i64>`) — cast `usize` to `u32` for JS
+  - `HashMap<String, u32>` in `#[napi(object)]` maps to `Record<string, number>` in TypeScript — works out of the box
+  - `get_current_memory` returns `Option<&MemoryCard>` — maps to `JsMemoryCard | null` in JS via `Option<JsMemoryCard>`
+  - `from_memory_card()` was already prepared in US-011 as `pub(crate)` — removed `#[allow(dead_code)]` now that it's actively used
+  - Pattern confirmed: use `match` instead of `.unwrap_err()` in tests for `Result<T, _>` where `T` contains `#[napi(object)]` structs (no `Debug` impl)
+---

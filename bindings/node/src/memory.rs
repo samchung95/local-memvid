@@ -1,5 +1,7 @@
 use napi_derive::napi;
 
+use std::collections::HashMap;
+
 use memvid_core::{MemoryCard, MemoryCardBuilder, MemoryKind, Polarity};
 
 use crate::error::from_memvid_error;
@@ -65,9 +67,6 @@ fn to_memory_card(js: JsMemoryCard) -> napi::Result<MemoryCard> {
 }
 
 /// Convert a Rust `MemoryCard` reference into a `JsMemoryCard`.
-///
-/// Used by the memory query module (US-012) for returning cards to JS.
-#[allow(dead_code)]
 pub(crate) fn from_memory_card(card: &MemoryCard) -> JsMemoryCard {
     JsMemoryCard {
         kind: card.kind.as_str().to_string(),
@@ -182,6 +181,215 @@ impl JsMemvid {
         })
         .await
         .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?
+    }
+}
+
+// ---------------------------------------------------------------------------
+// JsMemoriesStats
+// ---------------------------------------------------------------------------
+
+/// Statistics about the memories track.
+#[napi(object)]
+pub struct JsMemoriesStats {
+    /// Total number of cards.
+    pub card_count: u32,
+    /// Number of unique entities.
+    pub entity_count: u32,
+    /// Number of unique (entity, slot) pairs.
+    pub slot_count: u32,
+    /// Cards grouped by kind (e.g. `{ "fact": 3, "preference": 2 }`).
+    pub cards_by_kind: HashMap<String, u32>,
+    /// Number of enriched frames.
+    pub enriched_frames: u32,
+    /// Last enrichment timestamp (Unix seconds), or null if never enriched.
+    pub last_enrichment: Option<i64>,
+}
+
+// ---------------------------------------------------------------------------
+// JsMemvid impl — memory card query methods
+// ---------------------------------------------------------------------------
+
+#[napi]
+impl JsMemvid {
+    // -- getCurrentMemory ----------------------------------------------------
+
+    /// Get the current (most recent, non-retracted) memory for an entity:slot
+    /// (synchronous). Returns null if not found.
+    #[napi(js_name = "getCurrentMemorySync")]
+    pub fn get_current_memory_sync(
+        &self,
+        entity: String,
+        slot: String,
+    ) -> napi::Result<Option<JsMemoryCard>> {
+        let guard = guard_memvid!(self);
+        let mv = guard.as_ref().unwrap();
+        Ok(mv.get_current_memory(&entity, &slot).map(from_memory_card))
+    }
+
+    /// Get the current (most recent, non-retracted) memory for an entity:slot
+    /// (async). Returns null if not found.
+    #[napi(js_name = "getCurrentMemory")]
+    pub async fn get_current_memory(
+        &self,
+        entity: String,
+        slot: String,
+    ) -> napi::Result<Option<JsMemoryCard>> {
+        let inner = self.inner.clone();
+        tokio::task::spawn_blocking(move || {
+            let guard = lock_inner(&inner)?;
+            let mv = guard.as_ref().unwrap();
+            Ok(mv.get_current_memory(&entity, &slot).map(from_memory_card))
+        })
+        .await
+        .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?
+    }
+
+    // -- getEntityMemories ---------------------------------------------------
+
+    /// Get all memory cards for an entity (synchronous).
+    #[napi(js_name = "getEntityMemoriesSync")]
+    pub fn get_entity_memories_sync(&self, entity: String) -> napi::Result<Vec<JsMemoryCard>> {
+        let guard = guard_memvid!(self);
+        let mv = guard.as_ref().unwrap();
+        Ok(mv
+            .get_entity_memories(&entity)
+            .into_iter()
+            .map(from_memory_card)
+            .collect())
+    }
+
+    /// Get all memory cards for an entity (async).
+    #[napi(js_name = "getEntityMemories")]
+    pub async fn get_entity_memories(&self, entity: String) -> napi::Result<Vec<JsMemoryCard>> {
+        let inner = self.inner.clone();
+        tokio::task::spawn_blocking(move || {
+            let guard = lock_inner(&inner)?;
+            let mv = guard.as_ref().unwrap();
+            Ok(mv
+                .get_entity_memories(&entity)
+                .into_iter()
+                .map(from_memory_card)
+                .collect())
+        })
+        .await
+        .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?
+    }
+
+    // -- getMemoryTimeline ---------------------------------------------------
+
+    /// Get the event timeline for an entity, sorted chronologically
+    /// (synchronous).
+    #[napi(js_name = "getMemoryTimelineSync")]
+    pub fn get_memory_timeline_sync(&self, entity: String) -> napi::Result<Vec<JsMemoryCard>> {
+        let guard = guard_memvid!(self);
+        let mv = guard.as_ref().unwrap();
+        Ok(mv
+            .get_memory_timeline(&entity)
+            .into_iter()
+            .map(from_memory_card)
+            .collect())
+    }
+
+    /// Get the event timeline for an entity, sorted chronologically (async).
+    #[napi(js_name = "getMemoryTimeline")]
+    pub async fn get_memory_timeline(&self, entity: String) -> napi::Result<Vec<JsMemoryCard>> {
+        let inner = self.inner.clone();
+        tokio::task::spawn_blocking(move || {
+            let guard = lock_inner(&inner)?;
+            let mv = guard.as_ref().unwrap();
+            Ok(mv
+                .get_memory_timeline(&entity)
+                .into_iter()
+                .map(from_memory_card)
+                .collect())
+        })
+        .await
+        .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?
+    }
+
+    // -- getPreferences ------------------------------------------------------
+
+    /// Get all preference-type cards for an entity (synchronous).
+    #[napi(js_name = "getPreferencesSync")]
+    pub fn get_preferences_sync(&self, entity: String) -> napi::Result<Vec<JsMemoryCard>> {
+        let guard = guard_memvid!(self);
+        let mv = guard.as_ref().unwrap();
+        Ok(mv
+            .get_preferences(&entity)
+            .into_iter()
+            .map(from_memory_card)
+            .collect())
+    }
+
+    /// Get all preference-type cards for an entity (async).
+    #[napi(js_name = "getPreferences")]
+    pub async fn get_preferences(&self, entity: String) -> napi::Result<Vec<JsMemoryCard>> {
+        let inner = self.inner.clone();
+        tokio::task::spawn_blocking(move || {
+            let guard = lock_inner(&inner)?;
+            let mv = guard.as_ref().unwrap();
+            Ok(mv
+                .get_preferences(&entity)
+                .into_iter()
+                .map(from_memory_card)
+                .collect())
+        })
+        .await
+        .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?
+    }
+
+    // -- aggregateMemorySlot -------------------------------------------------
+
+    /// Aggregate all unique values for a slot across all occurrences
+    /// (synchronous).
+    #[napi(js_name = "aggregateMemorySlotSync")]
+    pub fn aggregate_memory_slot_sync(
+        &self,
+        entity: String,
+        slot: String,
+    ) -> napi::Result<Vec<String>> {
+        let guard = guard_memvid!(self);
+        let mv = guard.as_ref().unwrap();
+        Ok(mv.aggregate_memory_slot(&entity, &slot))
+    }
+
+    /// Aggregate all unique values for a slot across all occurrences (async).
+    #[napi(js_name = "aggregateMemorySlot")]
+    pub async fn aggregate_memory_slot(
+        &self,
+        entity: String,
+        slot: String,
+    ) -> napi::Result<Vec<String>> {
+        let inner = self.inner.clone();
+        tokio::task::spawn_blocking(move || {
+            let guard = lock_inner(&inner)?;
+            let mv = guard.as_ref().unwrap();
+            Ok(mv.aggregate_memory_slot(&entity, &slot))
+        })
+        .await
+        .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("[INTERNAL] {e}")))?
+    }
+
+    // -- memoriesStats -------------------------------------------------------
+
+    /// Get statistics about the memories track.
+    #[napi(js_name = "memoriesStats")]
+    pub fn memories_stats(&self) -> napi::Result<JsMemoriesStats> {
+        let guard = guard_memvid!(self);
+        let mv = guard.as_ref().unwrap();
+        let stats = mv.memories_stats();
+        Ok(JsMemoriesStats {
+            card_count: stats.card_count as u32,
+            entity_count: stats.entity_count as u32,
+            slot_count: stats.slot_count as u32,
+            cards_by_kind: stats
+                .cards_by_kind
+                .into_iter()
+                .map(|(k, v)| (k, v as u32))
+                .collect(),
+            enriched_frames: stats.enriched_frames as u32,
+            last_enrichment: stats.last_enrichment,
+        })
     }
 }
 
@@ -303,5 +511,73 @@ mod tests {
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
         assert!(err_msg.contains("CLOSED"), "Expected CLOSED error, got: {err_msg}");
+    }
+
+    // -- US-012 query method tests -------------------------------------------
+
+    #[test]
+    fn closed_get_current_memory_returns_error() {
+        let mv = JsMemvid {
+            inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        match mv.get_current_memory_sync("user".to_string(), "slot".to_string()) {
+            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Ok(_) => panic!("Expected error for closed instance"),
+        }
+    }
+
+    #[test]
+    fn closed_get_entity_memories_returns_error() {
+        let mv = JsMemvid {
+            inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        match mv.get_entity_memories_sync("user".to_string()) {
+            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Ok(_) => panic!("Expected error for closed instance"),
+        }
+    }
+
+    #[test]
+    fn closed_get_memory_timeline_returns_error() {
+        let mv = JsMemvid {
+            inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        match mv.get_memory_timeline_sync("user".to_string()) {
+            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Ok(_) => panic!("Expected error for closed instance"),
+        }
+    }
+
+    #[test]
+    fn closed_get_preferences_returns_error() {
+        let mv = JsMemvid {
+            inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        match mv.get_preferences_sync("user".to_string()) {
+            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Ok(_) => panic!("Expected error for closed instance"),
+        }
+    }
+
+    #[test]
+    fn closed_aggregate_memory_slot_returns_error() {
+        let mv = JsMemvid {
+            inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        match mv.aggregate_memory_slot_sync("user".to_string(), "slot".to_string()) {
+            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Ok(_) => panic!("Expected error for closed instance"),
+        }
+    }
+
+    #[test]
+    fn closed_memories_stats_returns_error() {
+        let mv = JsMemvid {
+            inner: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        match mv.memories_stats() {
+            Err(e) => assert!(e.to_string().contains("CLOSED"), "Expected CLOSED, got: {e}"),
+            Ok(_) => panic!("Expected error for closed instance"),
+        }
     }
 }
