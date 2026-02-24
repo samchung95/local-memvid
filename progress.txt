@@ -27,6 +27,9 @@
 - `AskContextFragment` and `AskContextFragmentKind` are NOT re-exported from `memvid_core` root — use `memvid_core::types::ask::` path
 - For generic `Option<&E>` embedder params, create a `NoEmbedder` dummy impl and pass `None::<&NoEmbedder>`
 - `EntityKind::from_label("product")` maps to `Project` (not `Product`) — "product" is an alias for Project in the Rust crate
+- `start_enrichment_worker` takes `Arc<Mutex<Memvid>>` (not `Option<Memvid>`) — for JsMemvid, use `run_worker_loop` directly with closures that handle `Option::None`
+- `EnrichmentWorkerHandle`, `run_worker_loop`, `TaskResult` are in `pub mod enrichment_worker` — accessible externally even if not re-exported from `lib.rs`
+- `tracing` is not a dep of `memvid-node` — use `let _ = expr;` instead of `tracing::warn!`
 
 ---
 
@@ -275,4 +278,21 @@
   - The acceptance criteria asks for `findSketchCandidates` returning `bigint[]` (frame IDs) — simplified from full candidate objects since the sketch is a pre-filter before BM25/vector reranking
   - `from_memvid_error` not needed for this module since sketch methods don't return `Result` (except through guard_memvid macro)
   - All 106 binding tests pass (8 new for sketch module)
+---
+
+## 2026-02-25 - US-017
+- Wrapped enrichment worker lifecycle: `JsEnrichmentHandle` class with `stats()`, `stop()`, `isRunning` getter; `startEnrichmentWorker(config)` on `JsMemvid`; engine-based enrichment tracking methods `getUnenrichedFramesSync`/`getUnenrichedFrames`, `recordEnrichmentSync`/`recordEnrichment`, `isFrameEnrichedSync`/`isFrameEnriched`
+- Files created/changed:
+  - `bindings/node/src/enrichment.rs` — `JsEnrichmentWorkerConfig`, `JsEnrichmentWorkerStats` structs with `#[napi(object)]`, `JsEnrichmentHandle` class with `stats()`, `stop()`, `isRunning`; custom `start_worker_for_js()` that adapts `run_worker_loop` for `Arc<Mutex<Option<Memvid>>>`; sync and async variants of enrichment tracking methods; 10 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod enrichment;`
+  - `prd.json` — marked US-017 as `passes: true`
+- **Learnings for future iterations:**
+  - `start_enrichment_worker()` takes `Arc<Mutex<Memvid>>` but `JsMemvid.inner` is `Arc<Mutex<Option<Memvid>>>` — cannot use it directly; wrote custom `start_worker_for_js()` using `run_worker_loop` from `memvid_core::enrichment_worker` module (which is `pub`)
+  - `EnrichmentWorkerHandle`, `run_worker_loop`, `TaskResult` are in `pub mod enrichment_worker` so accessible from bindings even though not re-exported from `lib.rs`
+  - Worker closures handle `Option::None` gracefully — if instance is closed during worker operation, the get_next_task closure returns `None` which stops the worker loop
+  - `EnrichmentHandle` has a private `thread` field so cannot be constructed externally — `JsEnrichmentHandle` stores `EnrichmentWorkerHandle` + `JoinHandle` separately
+  - `record_enrichment()` requires `card_ids: Vec<MemoryCardId>` — pass empty `vec![]` for the node API since card IDs are an internal tracking detail
+  - `EnrichmentWorkerStats` fields are `u64`/`usize` — map to `f64` for JS (same pattern as sketch stats)
+  - `tracing` crate is not a dependency of `memvid-node` — use `let _ = expr;` to silently discard errors instead of `tracing::warn!`
+  - All 115 binding tests pass (10 new for enrichment module)
 ---
