@@ -32,6 +32,7 @@
 - `tracing` is not a dep of `memvid-node` — use `let _ = expr;` instead of `tracing::warn!`
 - `serde_json = "1"` is a direct dep of `memvid-node` for converting `serde_json::Value` metadata to JS-compatible types
 - `ReaderRegistry` has no top-level `extract` — use `find_reader(&hint)` then `reader.extract(bytes, &hint)`
+- Enum↔string conversion for `#[serde(rename_all = "snake_case")]` enums: use `serde_json::to_value` / `serde_json::from_value(Value::String(...))` — requires `serde = "1"` as a direct dep for trait bounds
 
 ---
 
@@ -318,4 +319,22 @@
   - Added `serde_json = "1"` as direct dependency for `metadata_to_map()` — memvid-core re-exports `serde_json::Value` in its types but the crate itself needs the import
   - `PassthroughReader` (registered last) acts as fallback for text/markdown/html/unknown formats — extract with no format hint will use it
   - All 127 binding tests pass (12 new for reader module)
+---
+
+## 2026-02-25 - US-019
+- Wrapped verification, doctor, vacuum, and stats: `JsVerificationReport`, `JsVerificationCheck`, `JsDoctorOptions`, `JsDoctorFinding`, `JsDoctorActionPlan`, `JsDoctorPhasePlan`, `JsDoctorPlan`, `JsDoctorActionReport`, `JsDoctorPhaseReport`, `JsDoctorPhaseDuration`, `JsDoctorMetrics`, `JsDoctorReport`, `JsStats` structs with `#[napi(object)]`; static sync/async `verify`/`doctor`/`doctorPlan`/`doctorApply` methods; instance `vacuumSync`/`vacuum`, `statsSync`/`stats` methods
+- Files created/changed:
+  - `bindings/node/src/maintenance.rs` — all verification/doctor/stats JS types, enum↔string converters via serde, `from_*` and `to_*` bidirectional converters for DoctorPlan roundtripping, `tier_to_string` helper, static and instance methods on `JsMemvid`, 14 unit tests
+  - `bindings/node/src/lib.rs` — added `pub mod maintenance;`
+  - `bindings/node/Cargo.toml` — added `serde = "1"` dependency for enum trait bounds in generic helpers
+  - `prd.json` — marked US-019 as `passes: true`
+- **Learnings for future iterations:**
+  - `Memvid::verify()`, `doctor()`, `doctor_plan()`, `doctor_apply()` are all static methods (no `&self`) — use plain `#[napi(js_name = "...")]` without `factory` attribute
+  - All doctor/verification enums use `#[serde(rename_all = "snake_case")]` — leverage serde serialization for enum↔string conversion: `serde_json::to_value(&enum)` → `Value::String`, `serde_json::from_value(Value::String(s))` → enum
+  - `DoctorActionDetail` is a tagged enum (`#[serde(tag = "type")]`) — serialize to JSON string for the JS API, deserialize back for `doctor_apply` roundtrip
+  - `DoctorPlan` must be roundtrippable (JS → Rust) for `doctor_apply` — implement full bidirectional converters with `to_doctor_plan()` / `from_doctor_plan()`
+  - `Stats` has 25 fields; `u64` fields use `f64` for JS (same pattern as other modules), `Tier` enum manually mapped to strings
+  - `serde = "1"` added as direct dependency for the `Serialize`/`DeserializeOwned` trait bounds in generic enum helper functions
+  - `#[napi(object)]` structs still don't derive `Debug` — use `match` pattern in tests for `Result<T, _>` where `T` is a JS struct
+  - All 141 binding tests pass (14 new for maintenance module)
 ---

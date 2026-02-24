@@ -4,6 +4,7 @@ pub mod ask;
 pub mod enrichment;
 pub mod error;
 pub mod frame;
+pub mod maintenance;
 pub mod memory;
 pub mod memvid;
 pub mod mesh;
