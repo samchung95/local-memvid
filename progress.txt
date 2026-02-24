@@ -15,6 +15,9 @@
 - NAPI test runner outputs "Load Node-API ... failed" warnings — these are harmless when running `cargo test` outside Node.js
 - Each binding module gets its own file (e.g., `write.rs`) with `#[napi] impl JsMemvid` block; register via `pub mod write;` in `lib.rs`
 - NAPI `Buffer` auto-accepts JS `Buffer` and `Uint8Array`; `i64` maps to JS `bigint` for frame IDs
+- NAPI `Float32Array` from `napi::bindgen_prelude` maps to JS `Float32Array`; use `.to_vec()` to get `Vec<f32>`
+- `FrameRole` has 3 variants: `Document`, `DocumentChunk`, `ExtractedImage` — re-exported from `memvid_core::FrameRole`
+- For Rust structs with many fields, use `Option<T>` in JS `#[napi(object)]` structs so omitted fields get Rust defaults
 
 ---
 
@@ -74,4 +77,17 @@
   - `Memvid::begin_batch(PutManyOpts)` / `end_batch()` for batch mode; `PutManyOpts` has fields: `compression_level`, `disable_auto_checkpoint`, `skip_sync`, `wal_pre_size_bytes`, etc.
   - Pattern: each new binding module goes in its own file (e.g., `write.rs`), adds `#[napi] impl JsMemvid` block, and is registered via `pub mod write;` in `lib.rs`
   - The `memvid-core --lib` tests have pre-existing failures on Windows due to Tantivy temp dir access contention that poisons a serial test mutex — unrelated to node bindings
+---
+
+## 2026-02-25 - US-005
+- Wrapped PutOptions, putBytesWithOptions, putWithEmbedding, and deleteFrame operations
+- Files changed:
+  - `bindings/node/src/write.rs` — added `JsPutOptions` struct with `#[napi(object)]`, `to_put_options()` conversion, `parse_frame_role()` helper, sync/async variants of `putBytesWithOptions`, `putWithEmbedding`, `deleteFrame`; 6 new unit tests (total 23 passing)
+  - `prd.json` — marked US-005 as `passes: true`
+- **Learnings for future iterations:**
+  - `PutOptions` has many fields; expose them as `Option<T>` in the JS struct so omitted fields get Rust defaults
+  - `FrameRole` is an enum with 3 variants (`Document`, `DocumentChunk`, `ExtractedImage`) — accept as string and parse
+  - `Float32Array` from `napi::bindgen_prelude` auto-maps to JS `Float32Array`; use `.to_vec()` to get `Vec<f32>`
+  - `Memvid::delete_frame(frame_id) -> Result<u64>` returns the tombstone frame's sequence ID
+  - `beginBatchSync` / `endBatchSync` were already implemented in US-004 — the US-005 acceptance criteria mentioning them was already satisfied
 ---
