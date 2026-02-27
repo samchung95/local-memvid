@@ -34,7 +34,7 @@ fn parse_polarity(polarity: &str) -> PyResult<Polarity> {
 }
 
 /// Build a `MemoryCard` from the given Python kwargs.
-fn build_card(
+pub(crate) fn build_card(
     kind: &str,
     entity: &str,
     slot: &str,

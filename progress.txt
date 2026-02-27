@@ -194,3 +194,18 @@
   - All query methods only need immutable guard (`guard_memvid!(self, py)`) since they're read-only
   - Separate write operations (memory.rs) from query operations (memory_query.rs) for clean module organization
 ---
+
+## 2026-02-28 - US-013
+- Wrapped memory card schema operations: register_schema, validate_card, set_schema_strict, infer_schemas
+- Files changed:
+  - Created bindings/python/src/schema.rs (PyPredicateSchema, PyValidationResult pyclasses, register_schema/validate_card/set_schema_strict/infer_schemas methods on PyMemvid, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod schema;` and `schema::register(m)?;`)
+  - Modified bindings/python/src/memory.rs (made `build_card` pub(crate) so schema module can reuse it)
+- **Learnings for future iterations:**
+  - `PredicateSchema::new(id, name)` creates a schema — set fields directly after creation (no builder chain needed for description, domain, etc.)
+  - `ValueType` is a tagged enum: `String`, `Number`, `DateTime`, `Boolean`, `EntityRef { kind }`, `Enum { values }`, `Any` — decompose into separate Python kwargs: `range` (string), `range_entity_kind`, `range_enum_values`
+  - `validate_card` on Memvid returns `Result<(), SchemaError>` — SchemaError implements `Display` so use `.to_string()` for the Python error message
+  - `EntityKind` conversion: use `EntityKind::from_label()` or manual match — `from_label` accepts NER-style labels like "per", "org"; for Python API, prefer explicit full names
+  - Reusing `build_card` from `memory.rs` requires making it `pub(crate)` — avoids duplicating card construction logic in the schema module
+  - Dict helper functions (`dict_get_str`, etc.) are duplicated per module since they're not pub — could be moved to a shared utils module in future
+---

@@ -7,6 +7,7 @@ pub mod lifecycle;
 pub mod memory;
 pub mod memory_query;
 pub mod payload;
+pub mod schema;
 pub mod search;
 pub mod timeline;
 pub mod write;
@@ -26,6 +27,7 @@ fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
     lifecycle::register(m)?;
     memory_query::register(m)?;
     payload::register(m)?;
+    schema::register(m)?;
     search::register(m)?;
     timeline::register(m)?;
     m.add_function(wrap_pyfunction!(version, m)?)?;
