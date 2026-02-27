@@ -18,6 +18,11 @@
 - `start_enrichment_worker` takes `Arc<Mutex<Memvid>>` (not `Option<Memvid>`) — use `run_worker_loop` directly with closures
 - PyO3 0.23 `PyErr::new` requires owned values in the args tuple (not references); use `(message.clone(),)` not `(&message,)`
 - Custom exception attributes: use `err.value(py).setattr("name", value)` after `PyErr::new`
+- `guard_memvid!` macro: acquires Mutex lock and checks `Option` is `Some`; export with `pub(crate) use guard_memvid;` for use in other modules
+- PyO3 `__exit__` should return `PyResult<bool>` (false = don't suppress exceptions), not `Py<PyNone>`
+- Avoid naming a Rust module file `memvid.rs` — it conflicts with `#[pymodule] fn memvid`; use `lifecycle.rs` instead
+- PyO3 `multiple-pymethods` feature (+ `inventory` crate) is required to have multiple `#[pymethods]` blocks for the same `#[pyclass]` across files
+- Write operations need mutable guard: `let mut lock = guard_memvid!(mut self, py); lock.as_mut().unwrap()`
 
 ---
 
@@ -49,4 +54,32 @@
   - `catch_unwind(AssertUnwindSafe(f))` catches Rust panics at the PyO3 boundary; downcast to `&str` or `String` for the message
   - No node bindings exist yet — the PRD references `bindings/node/src/error.rs` but the dir is absent; error codes were mapped directly from `memvid_core::MemvidError` variants
   - Feature-gated match arms (e.g., `#[cfg(feature = "temporal_track")] InvalidTemporalTrack`) work correctly with exhaustive matching
+---
+
+## 2026-02-28 - US-003
+- Wrapped Memvid lifecycle: create, open, open_read_only, close with context manager support
+- Files changed:
+  - Created bindings/python/src/lifecycle.rs (PyMemvid pyclass, guard_memvid! macro, create/open/open_read_only static methods, close, is_read_only/path properties, __enter__/__exit__)
+  - Modified bindings/python/src/error.rs (added closed_error helper, rustfmt reformatted)
+  - Modified bindings/python/src/lib.rs (added `pub mod lifecycle;` and `lifecycle::register(m)?;`)
+- **Learnings for future iterations:**
+  - `guard_memvid!` macro acquires `Mutex<Option<Memvid>>` lock and checks `is_none()` — returns `MutexGuard` that callers use via `.as_ref().unwrap()` or `.as_mut().unwrap()`
+  - PyO3 `__exit__` should return `PyResult<bool>` (false = don't suppress), not `Py<PyNone>` — `py.None()` returns `Py<PyAny>` which doesn't coerce
+  - Don't name a Rust module file `memvid.rs` when the `#[pymodule]` function is also `fn memvid` — causes naming conflict; use `lifecycle.rs` instead
+  - `Memvid` has no explicit `close()` in Rust — RAII/Drop handles cleanup; Python wrapper sets `Option` to `None` to signal closed
+  - `Memvid::create`, `::open`, `::open_read_only` all take `impl AsRef<Path>` so `&str` works directly
+  - `error::closed_error(py, detail)` creates a `MemvidError` with code `CLOSED` — added as a reusable helper
+---
+
+## 2026-02-28 - US-004
+- Wrapped basic write operations: put_bytes, commit, commit_skip_indexes, finalize_indexes
+- Files changed:
+  - Created bindings/python/src/write.rs (put_bytes, commit, commit_skip_indexes, finalize_indexes methods on PyMemvid)
+  - Modified bindings/python/src/lib.rs (added `pub mod write;`)
+  - Modified bindings/python/Cargo.toml (added `multiple-pymethods` feature to pyo3)
+- **Learnings for future iterations:**
+  - PyO3 requires the `multiple-pymethods` feature to split `#[pymethods]` across multiple files for the same `#[pyclass]` — this pulls in the `inventory` crate
+  - PyO3 `&[u8]` parameter automatically accepts both Python `bytes` and `bytearray`
+  - Write methods (`put_bytes`, `commit`, etc.) need `let mut lock = guard_memvid!(mut self, py)` to get mutable access through the MutexGuard
+  - `Memvid::put_bytes` returns `Result<u64>` (frame ID); maps directly to Python `int`
 ---

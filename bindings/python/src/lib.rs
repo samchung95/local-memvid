@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 
 pub mod error;
 pub mod lifecycle;
+pub mod write;
 
 /// Returns the memvid-core version string.
 #[pyfunction]
