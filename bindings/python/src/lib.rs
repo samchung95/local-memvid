@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 pub mod error;
 pub mod frame;
 pub mod lifecycle;
+pub mod payload;
 pub mod search;
 pub mod timeline;
 pub mod write;
@@ -19,6 +20,7 @@ fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
     error::register(m)?;
     frame::register(m)?;
     lifecycle::register(m)?;
+    payload::register(m)?;
     search::register(m)?;
     timeline::register(m)?;
     m.add_function(wrap_pyfunction!(version, m)?)?;
