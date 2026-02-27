@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 
+pub mod blob;
 pub mod error;
 pub mod frame;
 pub mod lifecycle;
@@ -17,6 +18,7 @@ fn version() -> String {
 /// Python module for memvid.
 #[pymodule]
 fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    blob::register(m)?;
     error::register(m)?;
     frame::register(m)?;
     lifecycle::register(m)?;

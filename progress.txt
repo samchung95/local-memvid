@@ -26,6 +26,7 @@
 - `#[pyo3(get)]` on `Vec<pyclass>` in frozen classes fails — use `#[getter]` returning `Vec<PyClass>` with raw Rust data stored internally
 - `PutOptions::builder()` + `.build()` for put options; `PutManyOpts { ..Default::default() }` for batch options
 - `cargo test -p memvid-python` fails with DLL_NOT_FOUND (cdylib needs Python runtime); use `cargo check`/`cargo build` for validation
+- `BlobReader` from memvid-core uses `std::io::Read`/`std::io::Seek` traits — its `read()` returns `io::Result`, not `memvid_core::Result`; use `from_io_error` helper
 
 ---
 
@@ -137,4 +138,32 @@
   - `frame_by_id` and `frame_by_uri` only need immutable guard (no `mut`) since they're read-only operations
   - `frame_count` returns `usize`, `next_frame_id` returns `u64` — both map directly to Python `int`
   - `extra_metadata` uses `#[getter]` method (not `#[pyo3(get)]`) to return a cloned HashMap on each access — avoids lifetime issues with frozen pyclass
+---
+
+## 2026-02-28 - US-009
+- Wrapped frame payload and text retrieval: frame_canonical_payload, frame_text_by_id, frame_preview_by_id, frame_embedding, frame_context
+- Files changed:
+  - Created bindings/python/src/payload.rs (PyFrameContext pyclass, 5 methods on PyMemvid, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod payload;` and `payload::register(m)?;`)
+- **Learnings for future iterations:**
+  - All frame payload/text methods on `Memvid` take `&mut self` — need mutable guard (`guard_memvid!(mut self, py)` + `lock.as_mut().unwrap()`)
+  - `frame_context` returns `(String, usize)` tuple — wrap in a `PyFrameContext` pyclass with `text` and `match_count` fields
+  - `frame_canonical_payload` returns `Vec<u8>` — return as `PyBytes` using `PyBytes::new(py, &bytes)` with lifetime-bound return type `Bound<'py, PyBytes>`
+  - `frame_embedding` returns `Option<Vec<f32>>` — maps directly to Python `list[float] | None`
+  - Simple story: no complex type conversions, just direct wrapping of Rust methods
+---
+
+## 2026-02-28 - US-010
+- Wrapped blob_reader as iterable/file-like object with BlobReader pyclass
+- Files changed:
+  - Created bindings/python/src/blob.rs (PyBlobReader pyclass with read/close/context manager/iteration, blob_reader/blob_reader_by_uri methods on PyMemvid, register function)
+  - Modified bindings/python/src/error.rs (added from_io_error helper for std::io::Error conversion)
+  - Modified bindings/python/src/lib.rs (added `pub mod blob;` and `blob::register(m)?;`)
+- **Learnings for future iterations:**
+  - `BlobReader` implements `std::io::Read` and `std::io::Seek` — `read()` returns `io::Result<usize>`, not `memvid_core::Result`; need a separate `from_io_error` helper
+  - Wrap `BlobReader` in `Mutex<Option<BlobReader>>` (same pattern as PyMemvid) to support `close()` setting it to `None`
+  - `BlobReader::len()` is available before any reads — capture it at construction time as `total_len` for the `length` property
+  - `__next__` returning `Option<T>` maps to Python's `StopIteration` — return `Ok(None)` when `read()` returns 0 bytes
+  - `blob_reader` and `blob_reader_by_uri` on `Memvid` take `&mut self` — need mutable guard
+  - 64 KiB chunk size is a reasonable default for iteration
 ---

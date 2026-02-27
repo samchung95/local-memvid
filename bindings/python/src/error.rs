@@ -131,6 +131,11 @@ pub fn closed_error(py: Python<'_>, detail: &str) -> PyErr {
     build_pyerr(py, detail.to_string(), "CLOSED", None)
 }
 
+/// Convert a `std::io::Error` into a Python `MemvidError` with code `IO`.
+pub fn from_io_error(py: Python<'_>, e: std::io::Error) -> PyErr {
+    build_pyerr(py, e.to_string(), "IO", None)
+}
+
 /// Register the `MemvidError` exception class on the Python module.
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("MemvidError", m.py().get_type::<MemvidError>())?;
