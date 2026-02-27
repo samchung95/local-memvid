@@ -15,7 +15,7 @@
 - For generic `Option<&E>` embedder params, create a `NoEmbedder` dummy impl and pass `None::<&NoEmbedder>`
 - `ReaderRegistry` has no top-level `extract` — use `find_reader(&hint)` then `reader.extract(bytes, &hint)`
 - Enum↔string conversion: use `serde_json::to_value` / `serde_json::from_value(Value::String(...))` for `#[serde(rename_all = "snake_case")]` enums
-- `start_enrichment_worker` takes `Arc<Mutex<Memvid>>` (not `Option<Memvid>`) — use `run_worker_loop` directly with closures
+- `start_enrichment_worker` takes `Arc<Mutex<Memvid>>` (not `Option<Memvid>`) — use `run_worker_loop` directly with closures; PyMemvid.inner is `Arc<Mutex<Option<Memvid>>>` for thread sharing
 - PyO3 0.23 `PyErr::new` requires owned values in the args tuple (not references); use `(message.clone(),)` not `(&message,)`
 - Custom exception attributes: use `err.value(py).setattr("name", value)` after `PyErr::new`
 - `guard_memvid!` macro: acquires Mutex lock and checks `Option` is `Some`; export with `pub(crate) use guard_memvid;` for use in other modules
@@ -252,4 +252,19 @@
   - `SketchSearchOptions` is in `memvid_core::memvid::sketch` (not re-exported from types) — use full path for import
   - `build_all_sketches` needs `&mut self`; `has_sketches`, `sketch_stats`, `find_sketch_candidates` only need `&self`
   - Simple story — no complex type conversions, just direct wrapping of 4 Rust methods + 1 stats pyclass
+---
+
+## 2026-02-28 - US-017
+- Wrapped enrichment worker lifecycle: start_enrichment_worker, EnrichmentHandle (stats/stop/is_running), get_unenriched_frames, record_enrichment, is_frame_enriched
+- Files changed:
+  - Created bindings/python/src/enrichment.rs (PyEnrichmentWorkerStats, PyEnrichmentHandle pyclasses, start_enrichment_worker/get_unenriched_frames/record_enrichment/is_frame_enriched methods on PyMemvid, register function)
+  - Modified bindings/python/src/lifecycle.rs (changed PyMemvid.inner from `Mutex<Option<Memvid>>` to `Arc<Mutex<Option<Memvid>>>` for thread sharing)
+  - Modified bindings/python/src/lib.rs (added `pub mod enrichment;` and `enrichment::register(m)?;`)
+- **Learnings for future iterations:**
+  - PyMemvid.inner changed to `Arc<Mutex<Option<Memvid>>>` — Arc enables sharing with background worker threads; all existing code (guard_memvid!, close, etc.) works unchanged since Arc<Mutex<T>> derefs to Mutex<T>
+  - `run_worker_loop` closures handle the Option wrapper by returning early (None for get_next_task, error TaskResult for process_task) when inner is None (closed)
+  - `record_enrichment` on Memvid requires `card_ids: Vec<MemoryCardId>` — Python API makes this optional (defaults to empty vec) since PRD doesn't list it
+  - `EnrichmentWorkerStats.queue_depth` maps to PRD's `pending` field; `frames_processed` maps to `processed`
+  - The `tracing` crate is not a dependency of memvid-python — don't use `tracing::warn!` in binding code; silently ignore or use `let _ =` pattern
+  - PyEnrichmentHandle stores thread in `Mutex<Option<JoinHandle<()>>>` to allow `stop()` to join without consuming self
 ---

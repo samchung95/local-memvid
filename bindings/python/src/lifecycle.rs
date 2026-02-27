@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use pyo3::prelude::*;
 
@@ -34,11 +34,12 @@ pub(crate) use guard_memvid;
 
 /// Python wrapper around `memvid_core::Memvid`.
 ///
-/// The inner handle is stored behind `Mutex<Option<…>>` so that `close()`
+/// The inner handle is stored behind `Arc<Mutex<Option<…>>>` so that `close()`
 /// can set it to `None` and all subsequent calls raise `MemvidError(CLOSED)`.
+/// The `Arc` enables sharing with background worker threads (e.g. enrichment).
 #[pyclass(name = "Memvid")]
 pub struct PyMemvid {
-    pub(crate) inner: Mutex<Option<memvid_core::Memvid>>,
+    pub(crate) inner: Arc<Mutex<Option<memvid_core::Memvid>>>,
 }
 
 #[pymethods]
@@ -52,7 +53,7 @@ impl PyMemvid {
             let mv =
                 memvid_core::Memvid::create(path).map_err(|e| error::from_memvid_error(py, e))?;
             Ok(Self {
-                inner: Mutex::new(Some(mv)),
+                inner: Arc::new(Mutex::new(Some(mv))),
             })
         })
     }
@@ -64,7 +65,7 @@ impl PyMemvid {
             let mv =
                 memvid_core::Memvid::open(path).map_err(|e| error::from_memvid_error(py, e))?;
             Ok(Self {
-                inner: Mutex::new(Some(mv)),
+                inner: Arc::new(Mutex::new(Some(mv))),
             })
         })
     }
@@ -76,7 +77,7 @@ impl PyMemvid {
             let mv = memvid_core::Memvid::open_read_only(path)
                 .map_err(|e| error::from_memvid_error(py, e))?;
             Ok(Self {
-                inner: Mutex::new(Some(mv)),
+                inner: Arc::new(Mutex::new(Some(mv))),
             })
         })
     }

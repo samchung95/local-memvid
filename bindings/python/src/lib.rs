@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 
 pub mod ask;
 pub mod blob;
+pub mod enrichment;
 pub mod error;
 pub mod frame;
 pub mod lifecycle;
@@ -26,6 +27,7 @@ fn version() -> String {
 fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
     ask::register(m)?;
     blob::register(m)?;
+    enrichment::register(m)?;
     error::register(m)?;
     frame::register(m)?;
     lifecycle::register(m)?;
