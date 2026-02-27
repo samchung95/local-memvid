@@ -16,6 +16,8 @@
 - `ReaderRegistry` has no top-level `extract` — use `find_reader(&hint)` then `reader.extract(bytes, &hint)`
 - Enum↔string conversion: use `serde_json::to_value` / `serde_json::from_value(Value::String(...))` for `#[serde(rename_all = "snake_case")]` enums
 - `start_enrichment_worker` takes `Arc<Mutex<Memvid>>` (not `Option<Memvid>`) — use `run_worker_loop` directly with closures
+- PyO3 0.23 `PyErr::new` requires owned values in the args tuple (not references); use `(message.clone(),)` not `(&message,)`
+- Custom exception attributes: use `err.value(py).setattr("name", value)` after `PyErr::new`
 
 ---
 
@@ -33,4 +35,18 @@
   - Main branch does not have [workspace] section — must add it when creating first binding on a fresh branch
   - The `*.txt` and `*.json` root gitignore patterns require negation for prd.json and progress.txt
   - `cargo build -p memvid-python` and `cargo check -p memvid-python` both pass clean
+---
+
+## 2026-02-28 - US-002
+- Defined MemvidError Python exception and error code mapping
+- Files changed:
+  - Created bindings/python/src/error.rs (MemvidError exception, error_code/error_path mapping, from_memvid_error, catch_panic, register, 8 unit tests)
+  - Modified bindings/python/src/lib.rs (added `pub mod error;` and `error::register(m)?;`)
+- **Learnings for future iterations:**
+  - `PyErr::new::<T, _>((message.clone(),))` — must pass owned values in the args tuple, not references (PyO3 0.23 requires `'static` for the args)
+  - `create_exception!(memvid, MemvidError, PyException)` creates the exception type; register on module with `m.add("MemvidError", m.py().get_type::<MemvidError>())?`
+  - Custom attributes (.message, .code, .path) are set via `err.value(py).setattr(...)` after creating the PyErr
+  - `catch_unwind(AssertUnwindSafe(f))` catches Rust panics at the PyO3 boundary; downcast to `&str` or `String` for the message
+  - No node bindings exist yet — the PRD references `bindings/node/src/error.rs` but the dir is absent; error codes were mapped directly from `memvid_core::MemvidError` variants
+  - Feature-gated match arms (e.g., `#[cfg(feature = "temporal_track")] InvalidTemporalTrack`) work correctly with exhaustive matching
 ---
