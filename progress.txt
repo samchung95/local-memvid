@@ -113,3 +113,15 @@
   - `SearchRequest` has feature-gated `temporal` field (`#[cfg(feature = "temporal_track")]`) — must conditionally include it in struct literal
   - `SearchRequest` also has `as_of_frame`, `as_of_ts`, `acl_context`, `acl_enforcement_mode` — set to None/default for basic search wrapper
 ---
+
+## 2026-02-28 - US-007
+- Wrapped timeline queries with TimelineEntry pyclass and timeline() method on PyMemvid
+- Files changed:
+  - Created bindings/python/src/timeline.rs (PyTimelineEntry pyclass, timeline() method on PyMemvid, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod timeline;` and `timeline::register(m)?;`)
+- **Learnings for future iterations:**
+  - `TimelineEntry` fields map directly to simple Python types — `Vec<u64>` for `child_frames` works with `#[pyo3(get)]` since it's not a Vec of pyclasses
+  - `TimelineQuery` has a `limit: Option<NonZeroU64>` — accept `Option<u64>` from Python and convert via `NonZeroU64::new`
+  - `TimelineQuery` has feature-gated `temporal` field like `SearchRequest` — use `#[cfg(feature = "temporal_track")]` in struct literal
+  - Simple stories with no complex type conversions can reuse the `From` trait pattern cleanly
+---
