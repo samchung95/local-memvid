@@ -23,6 +23,7 @@
 - Avoid naming a Rust module file `memvid.rs` — it conflicts with `#[pymodule] fn memvid`; use `lifecycle.rs` instead
 - PyO3 `multiple-pymethods` feature (+ `inventory` crate) is required to have multiple `#[pymethods]` blocks for the same `#[pyclass]` across files
 - Write operations need mutable guard: `let mut lock = guard_memvid!(mut self, py); lock.as_mut().unwrap()`
+- `#[pyo3(get)]` on `Vec<pyclass>` in frozen classes fails — use `#[getter]` returning `Vec<PyClass>` with raw Rust data stored internally
 - `PutOptions::builder()` + `.build()` for put options; `PutManyOpts { ..Default::default() }` for batch options
 - `cargo test -p memvid-python` fails with DLL_NOT_FOUND (cdylib needs Python runtime); use `cargo check`/`cargo build` for validation
 
@@ -97,4 +98,18 @@
   - `#[pyo3(signature = (data, *, ...))]` makes all args after `*` keyword-only in Python
   - `begin_batch` takes `PutManyOpts`, `end_batch` takes no args — PRD kwargs map to PutManyOpts fields
   - `cargo test -p memvid-python` fails with DLL_NOT_FOUND on cdylib — this is expected; use `cargo check` and `cargo build` for validation
+---
+
+## 2026-02-28 - US-006
+- Wrapped search with SearchRequest and SearchResponse types
+- Files changed:
+  - Created bindings/python/src/search.rs (PySearchHit, PySearchResponse pyclasses, search() method on PyMemvid, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod search;` and `search::register(m)?;`)
+- **Learnings for future iterations:**
+  - `#[pyo3(get)]` on `Vec<pyclass>` does NOT work in frozen classes — PyO3 can't create Python references from Rust-heap pyclasses; store raw Rust data and use `#[getter]` method returning `Vec<PyClass>` instead
+  - `SearchResponse.elapsed_ms` is `u128` in Rust — cast to `u64` for Python since PyO3 doesn't support u128
+  - `SearchHit.matches` (Rust) maps to `match_count` (Python PRD field name) — rename in the conversion
+  - `SearchEngineKind` is an enum with `Tantivy`, `LexFallback`, `Hybrid` — convert to snake_case strings for Python
+  - `SearchRequest` has feature-gated `temporal` field (`#[cfg(feature = "temporal_track")]`) — must conditionally include it in struct literal
+  - `SearchRequest` also has `as_of_frame`, `as_of_ts`, `acl_context`, `acl_enforcement_mode` — set to None/default for basic search wrapper
 ---
