@@ -5,7 +5,7 @@ use memvid_core::{DocumentFormat, ReaderDiagnostics, ReaderHint, ReaderOutput, R
 use serde_json::Value;
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 
 // ---------------------------------------------------------------------------
 // serde_json::Value → Python conversion
@@ -202,10 +202,7 @@ impl PyReaderRegistry {
     }
 
     fn __repr__(&self) -> String {
-        format!(
-            "ReaderRegistry(readers={})",
-            self.inner.readers().len()
-        )
+        format!("ReaderRegistry(readers={})", self.inner.readers().len())
     }
 }
 

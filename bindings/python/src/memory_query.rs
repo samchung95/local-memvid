@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 use memvid_core::types::memory_card::{MemoryCard, MemoryKind, Polarity, VersionRelation};
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 
 // ---------------------------------------------------------------------------
 // Helper conversions
@@ -167,11 +167,7 @@ impl PyMemvid {
     }
 
     /// Get all memory cards for an entity.
-    fn get_entity_memories(
-        &self,
-        py: Python<'_>,
-        entity: &str,
-    ) -> PyResult<Vec<PyMemoryCard>> {
+    fn get_entity_memories(&self, py: Python<'_>, entity: &str) -> PyResult<Vec<PyMemoryCard>> {
         error::catch_panic(py, || {
             let lock = guard_memvid!(self, py);
             let mv = lock.as_ref().unwrap();
@@ -184,11 +180,7 @@ impl PyMemvid {
     }
 
     /// Get event-type memory cards for an entity, sorted chronologically.
-    fn get_memory_timeline(
-        &self,
-        py: Python<'_>,
-        entity: &str,
-    ) -> PyResult<Vec<PyMemoryCard>> {
+    fn get_memory_timeline(&self, py: Python<'_>, entity: &str) -> PyResult<Vec<PyMemoryCard>> {
         error::catch_panic(py, || {
             let lock = guard_memvid!(self, py);
             let mv = lock.as_ref().unwrap();
@@ -201,11 +193,7 @@ impl PyMemvid {
     }
 
     /// Get all preference cards for an entity.
-    fn get_preferences(
-        &self,
-        py: Python<'_>,
-        entity: &str,
-    ) -> PyResult<Vec<PyMemoryCard>> {
+    fn get_preferences(&self, py: Python<'_>, entity: &str) -> PyResult<Vec<PyMemoryCard>> {
         error::catch_panic(py, || {
             let lock = guard_memvid!(self, py);
             let mv = lock.as_ref().unwrap();

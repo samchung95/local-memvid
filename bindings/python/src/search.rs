@@ -6,7 +6,7 @@ use memvid_core::types::search::{
 };
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 
 // ---------------------------------------------------------------------------
 // Python wrapper types
@@ -124,6 +124,7 @@ impl PyMemvid {
     ///
     /// Returns a `SearchResponse` with ranked hits and context.
     #[pyo3(signature = (query, *, top_k=10, snippet_chars=200, uri=None, scope=None, cursor=None, no_sketch=false))]
+    #[allow(clippy::too_many_arguments)]
     fn search(
         &self,
         py: Python<'_>,

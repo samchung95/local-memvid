@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use memvid_core::types::TimelineEntry;
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 use std::num::NonZeroU64;
 
 // ---------------------------------------------------------------------------

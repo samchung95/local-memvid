@@ -5,7 +5,7 @@ use memvid_core::types::logic_mesh::EntityKind;
 use memvid_core::types::schema::{Cardinality, PredicateSchema, ValueType};
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 use crate::memory::build_card;
 
 // ---------------------------------------------------------------------------

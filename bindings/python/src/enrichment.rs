@@ -7,7 +7,7 @@ use memvid_core::enrichment_worker::{
 };
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 
 // ---------------------------------------------------------------------------
 // PyEnrichmentWorkerStats

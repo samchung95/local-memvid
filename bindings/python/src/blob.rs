@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 
 /// Default chunk size for iteration (64 KiB).
 const DEFAULT_CHUNK_SIZE: usize = 65_536;
@@ -35,9 +35,9 @@ impl PyBlobReader {
             .inner
             .lock()
             .map_err(|_| error::closed_error(py, "BlobReader lock poisoned"))?;
-        let reader = lock.as_mut().ok_or_else(|| {
-            error::closed_error(py, "BlobReader is closed")
-        })?;
+        let reader = lock
+            .as_mut()
+            .ok_or_else(|| error::closed_error(py, "BlobReader is closed"))?;
 
         if size < 0 {
             // Read all remaining bytes.
@@ -95,9 +95,9 @@ impl PyBlobReader {
             .inner
             .lock()
             .map_err(|_| error::closed_error(py, "BlobReader lock poisoned"))?;
-        let reader = lock.as_mut().ok_or_else(|| {
-            error::closed_error(py, "BlobReader is closed")
-        })?;
+        let reader = lock
+            .as_mut()
+            .ok_or_else(|| error::closed_error(py, "BlobReader is closed"))?;
 
         let mut buf = vec![0u8; DEFAULT_CHUNK_SIZE];
         let n = reader

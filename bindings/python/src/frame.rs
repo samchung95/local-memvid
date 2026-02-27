@@ -6,7 +6,7 @@ use memvid_core::types::common::{CanonicalEncoding, FrameRole};
 use memvid_core::types::frame::Frame;
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 
 // ---------------------------------------------------------------------------
 // Python wrapper types

@@ -4,7 +4,7 @@ use memvid_core::types::common::FrameRole;
 use memvid_core::types::options::{PutManyOpts, PutOptions};
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 
 /// Parse a Python string into a `FrameRole` via serde.
 fn parse_role(role: &str) -> Result<FrameRole, String> {
@@ -21,7 +21,8 @@ impl PyMemvid {
         error::catch_panic(py, || {
             let mut lock = guard_memvid!(mut self, py);
             let mv = lock.as_mut().unwrap();
-            mv.put_bytes(data).map_err(|e| error::from_memvid_error(py, e))
+            mv.put_bytes(data)
+                .map_err(|e| error::from_memvid_error(py, e))
         })
     }
 
@@ -29,6 +30,7 @@ impl PyMemvid {
     ///
     /// Keyword arguments map to `PutOptions` fields. All are optional.
     #[pyo3(signature = (data, *, timestamp=None, track=None, kind=None, uri=None, title=None, tags=None, labels=None, search_text=None, enable_embedding=false, auto_tag=true, dedup=false, role=None, source_path=None, no_raw=false))]
+    #[allow(clippy::too_many_arguments)]
     fn put_bytes_with_options(
         &self,
         py: Python<'_>,
@@ -77,9 +79,7 @@ impl PyMemvid {
                 builder = builder.source_path(sp);
             }
             if let Some(r) = role {
-                let fr = parse_role(r).map_err(|msg| {
-                    pyo3::exceptions::PyValueError::new_err(msg)
-                })?;
+                let fr = parse_role(r).map_err(pyo3::exceptions::PyValueError::new_err)?;
                 builder = builder.role(fr);
             }
 
@@ -157,8 +157,7 @@ impl PyMemvid {
         error::catch_panic(py, || {
             let mut lock = guard_memvid!(mut self, py);
             let mv = lock.as_mut().unwrap();
-            mv.end_batch()
-                .map_err(|e| error::from_memvid_error(py, e))
+            mv.end_batch().map_err(|e| error::from_memvid_error(py, e))
         })
     }
 

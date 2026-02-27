@@ -29,6 +29,8 @@
 - `BlobReader` from memvid-core uses `std::io::Read`/`std::io::Seek` traits — its `read()` returns `io::Result`, not `memvid_core::Result`; use `from_io_error` helper
 - `serde_json::Value` → Python: use recursive `value_to_py` helper; `bool.into_pyobject(py)` returns `Borrowed` — call `.to_owned()` before `.into_any().unbind()`
 - `MemvidError::Io` is a struct variant `{ source, path }` — not a tuple; use `MemvidError::Io { source: ..., path: None }`
+- PyO3 functions with many keyword-only args need `#[allow(clippy::too_many_arguments)]` after the `#[pyo3(signature)]` attribute
+- Always run `cargo fmt` before committing — it reorders imports alphabetically and reformats line wrapping
 
 ---
 
@@ -300,4 +302,26 @@
   - All doctor enums use `#[serde(rename_all = "snake_case")]` — match manually to &'static str for Python rather than going through serde
   - `Stats` has 24 fields including `Tier` enum (Free/Dev/Enterprise) — all map directly to primitive Python types
   - `vacuum()` is an instance method (`&mut self`) — needs mutable guard; `stats()` is read-only (`&self`)
+---
+
+## 2026-02-28 - US-020
+- Generated type stubs, smoke tests, CI workflow, and fixed clippy/fmt issues
+- Files changed:
+  - Created bindings/python/memvid.pyi (comprehensive type stubs for all 30+ classes, 100+ methods, 150+ properties)
+  - Created bindings/python/tests/test_smoke.py (pytest smoke tests: lifecycle, write/read round-trip, search, timeline, memory cards, batch, verify, stats, reader registry, class existence checks)
+  - Created .github/workflows/python-bindings.yml (CI for linux-x64, macos-x64, macos-arm64, windows-x64 wheels + smoke tests)
+  - Modified bindings/python/src/ask.rs (added #[allow(clippy::too_many_arguments)])
+  - Modified bindings/python/src/maintenance.rs (added #[allow(clippy::too_many_arguments)] to doctor/doctor_plan)
+  - Modified bindings/python/src/memory.rs (added #[allow(clippy::too_many_arguments)])
+  - Modified bindings/python/src/search.rs (added #[allow(clippy::too_many_arguments)])
+  - Modified bindings/python/src/write.rs (added #[allow(clippy::too_many_arguments)], fixed redundant closure)
+  - Multiple files reformatted by cargo fmt (import order, line wrapping)
+  - Modified prd.json (US-020 passes: true)
+- **Learnings for future iterations:**
+  - PyO3 binding functions with many keyword-only args trigger `clippy::too_many_arguments` — add `#[allow(clippy::too_many_arguments)]` after `#[pyo3(signature)]`
+  - `cargo fmt` reorders `use` imports alphabetically (e.g., `{PyMemvid, guard_memvid}` → sorted by first letter) — always run fmt before committing
+  - `.pyi` stub files use `from __future__ import annotations` to allow forward references and `Optional[X]` syntax on Python 3.9+
+  - Smoke tests should use `tmp_path` fixture (pytest) for creating temporary .mv2 files — ensures cleanup
+  - CI workflow uses `maturin build --release --target` for cross-compilation and `--out dist` to collect wheels
+  - For macos-arm64 cross-compilation from macos-x64 runner, only build (no smoke test) since the runner can't execute arm64 binaries
 ---

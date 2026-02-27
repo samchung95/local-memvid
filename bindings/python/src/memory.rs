@@ -4,7 +4,7 @@ use pyo3::types::PyDict;
 use memvid_core::types::memory_card::{MemoryCardBuilder, MemoryKind, Polarity};
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 
 /// Parse a Python string into a `MemoryKind`.
 fn parse_kind(kind: &str) -> PyResult<MemoryKind> {
@@ -95,6 +95,7 @@ impl PyMemvid {
     /// `kind` must be one of: fact, preference, event, profile, relationship, goal, other.
     /// `polarity` (optional) must be one of: positive, negative, neutral.
     #[pyo3(signature = (*, kind, entity, slot, value, polarity=None, event_date=None))]
+    #[allow(clippy::too_many_arguments)]
     fn put_memory_card(
         &self,
         py: Python<'_>,
@@ -126,30 +127,24 @@ impl PyMemvid {
         error::catch_panic(py, || {
             let mut rust_cards = Vec::with_capacity(cards.len());
             for (i, dict) in cards.iter().enumerate() {
-                let kind = dict_get_str(dict, "kind")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("card[{}]: {}", i, e),
-                    ))?;
-                let entity = dict_get_str(dict, "entity")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("card[{}]: {}", i, e),
-                    ))?;
-                let slot = dict_get_str(dict, "slot")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("card[{}]: {}", i, e),
-                    ))?;
-                let value = dict_get_str(dict, "value")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("card[{}]: {}", i, e),
-                    ))?;
-                let polarity = dict_get_opt_str(dict, "polarity")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("card[{}]: {}", i, e),
-                    ))?;
-                let event_date = dict_get_opt_i64(dict, "event_date")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("card[{}]: {}", i, e),
-                    ))?;
+                let kind = dict_get_str(dict, "kind").map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("card[{}]: {}", i, e))
+                })?;
+                let entity = dict_get_str(dict, "entity").map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("card[{}]: {}", i, e))
+                })?;
+                let slot = dict_get_str(dict, "slot").map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("card[{}]: {}", i, e))
+                })?;
+                let value = dict_get_str(dict, "value").map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("card[{}]: {}", i, e))
+                })?;
+                let polarity = dict_get_opt_str(dict, "polarity").map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("card[{}]: {}", i, e))
+                })?;
+                let event_date = dict_get_opt_i64(dict, "event_date").map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("card[{}]: {}", i, e))
+                })?;
 
                 let card = build_card(
                     &kind,

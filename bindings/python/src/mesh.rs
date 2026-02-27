@@ -6,7 +6,7 @@ use pyo3::types::PyDict;
 use memvid_core::types::logic_mesh::{EntityKind, FollowResult, LinkType, MeshEdge, MeshNode};
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 
 // ---------------------------------------------------------------------------
 // Helper conversions (reuse EntityKind parsing from schema.rs pattern)
@@ -234,34 +234,26 @@ impl PyMemvid {
     ///
     /// Each dict must have keys: canonical_name, display_name, kind.
     /// Optional keys: confidence (default 0.9).
-    fn add_mesh_nodes(
-        &self,
-        py: Python<'_>,
-        nodes: Vec<Bound<'_, PyDict>>,
-    ) -> PyResult<()> {
+    fn add_mesh_nodes(&self, py: Python<'_>, nodes: Vec<Bound<'_, PyDict>>) -> PyResult<()> {
         error::catch_panic(py, || {
             let mut rust_nodes = Vec::with_capacity(nodes.len());
             for (i, dict) in nodes.iter().enumerate() {
-                let canonical_name = dict_get_str(dict, "canonical_name")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("node[{}]: {}", i, e),
-                    ))?;
-                let display_name = dict_get_str(dict, "display_name")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("node[{}]: {}", i, e),
-                    ))?;
-                let kind_str = dict_get_str(dict, "kind")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("node[{}]: {}", i, e),
-                    ))?;
-                let ek = parse_entity_kind(&kind_str)
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("node[{}]: {}", i, e),
-                    ))?;
+                let canonical_name = dict_get_str(dict, "canonical_name").map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("node[{}]: {}", i, e))
+                })?;
+                let display_name = dict_get_str(dict, "display_name").map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("node[{}]: {}", i, e))
+                })?;
+                let kind_str = dict_get_str(dict, "kind").map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("node[{}]: {}", i, e))
+                })?;
+                let ek = parse_entity_kind(&kind_str).map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("node[{}]: {}", i, e))
+                })?;
                 let confidence = dict_get_opt_f64(dict, "confidence")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("node[{}]: {}", i, e),
-                    ))?
+                    .map_err(|e| {
+                        pyo3::exceptions::PyValueError::new_err(format!("node[{}]: {}", i, e))
+                    })?
                     .unwrap_or(0.9);
                 rust_nodes.push(MeshNode::new(
                     canonical_name,
@@ -311,44 +303,47 @@ impl PyMemvid {
     ///
     /// Each dict must have keys: from_node (int), to_node (int), link (str).
     /// Optional keys: confidence (default 0.9), frame_id.
-    fn add_mesh_edges(
-        &self,
-        py: Python<'_>,
-        edges: Vec<Bound<'_, PyDict>>,
-    ) -> PyResult<()> {
+    fn add_mesh_edges(&self, py: Python<'_>, edges: Vec<Bound<'_, PyDict>>) -> PyResult<()> {
         error::catch_panic(py, || {
             let mut rust_edges = Vec::with_capacity(edges.len());
             for (i, dict) in edges.iter().enumerate() {
-                let from_node = dict.get_item("from_node")?
-                    .ok_or_else(|| pyo3::exceptions::PyKeyError::new_err(
-                        format!("edge[{}]: missing required key 'from_node'", i),
-                    ))?
+                let from_node = dict
+                    .get_item("from_node")?
+                    .ok_or_else(|| {
+                        pyo3::exceptions::PyKeyError::new_err(format!(
+                            "edge[{}]: missing required key 'from_node'",
+                            i
+                        ))
+                    })?
                     .extract::<u64>()
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("edge[{}]: {}", i, e),
-                    ))?;
-                let to_node = dict.get_item("to_node")?
-                    .ok_or_else(|| pyo3::exceptions::PyKeyError::new_err(
-                        format!("edge[{}]: missing required key 'to_node'", i),
-                    ))?
+                    .map_err(|e| {
+                        pyo3::exceptions::PyValueError::new_err(format!("edge[{}]: {}", i, e))
+                    })?;
+                let to_node = dict
+                    .get_item("to_node")?
+                    .ok_or_else(|| {
+                        pyo3::exceptions::PyKeyError::new_err(format!(
+                            "edge[{}]: missing required key 'to_node'",
+                            i
+                        ))
+                    })?
                     .extract::<u64>()
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("edge[{}]: {}", i, e),
-                    ))?;
-                let link_str = dict_get_str(dict, "link")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("edge[{}]: {}", i, e),
-                    ))?;
+                    .map_err(|e| {
+                        pyo3::exceptions::PyValueError::new_err(format!("edge[{}]: {}", i, e))
+                    })?;
+                let link_str = dict_get_str(dict, "link").map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("edge[{}]: {}", i, e))
+                })?;
                 let lt = LinkType::from_str(&link_str);
                 let confidence = dict_get_opt_f64(dict, "confidence")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("edge[{}]: {}", i, e),
-                    ))?
+                    .map_err(|e| {
+                        pyo3::exceptions::PyValueError::new_err(format!("edge[{}]: {}", i, e))
+                    })?
                     .unwrap_or(0.9);
                 let frame_id = dict_get_opt_u64(dict, "frame_id")
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("edge[{}]: {}", i, e),
-                    ))?
+                    .map_err(|e| {
+                        pyo3::exceptions::PyValueError::new_err(format!("edge[{}]: {}", i, e))
+                    })?
                     .unwrap_or(0);
                 rust_edges.push(MeshEdge::new(
                     from_node,
@@ -395,7 +390,11 @@ impl PyMemvid {
         error::catch_panic(py, || {
             let lock = guard_memvid!(self, py);
             let mv = lock.as_ref().unwrap();
-            Ok(mv.frame_entities(frame_id).into_iter().map(PyMeshNode::from).collect())
+            Ok(mv
+                .frame_entities(frame_id)
+                .into_iter()
+                .map(PyMeshNode::from)
+                .collect())
         })
     }
 
@@ -405,7 +404,11 @@ impl PyMemvid {
             let ek = parse_entity_kind(kind)?;
             let lock = guard_memvid!(self, py);
             let mv = lock.as_ref().unwrap();
-            Ok(mv.entities_by_kind(ek).into_iter().map(PyMeshNode::from).collect())
+            Ok(mv
+                .entities_by_kind(ek)
+                .into_iter()
+                .map(PyMeshNode::from)
+                .collect())
         })
     }
 

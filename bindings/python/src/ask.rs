@@ -2,13 +2,13 @@ use pyo3::prelude::*;
 
 use memvid_core::types::ask::{
     AskCitation as CoreAskCitation, AskContextFragment as CoreAskContextFragment,
-    AskContextFragmentKind, AskMode, AskRequest, AskResponse as CoreAskResponse,
-    AskRetriever, AskStats as CoreAskStats, VecEmbedder,
+    AskContextFragmentKind, AskMode, AskRequest, AskResponse as CoreAskResponse, AskRetriever,
+    AskStats as CoreAskStats, VecEmbedder,
 };
 use memvid_core::types::search::SearchResponse as CoreSearchResponse;
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 use crate::search::PySearchResponse;
 
 // ---------------------------------------------------------------------------
@@ -281,6 +281,7 @@ impl PyMemvid {
     /// Returns an `AskResponse` with retrieval results, optional answer,
     /// citations, context fragments, and performance stats.
     #[pyo3(signature = (question, *, top_k=5, snippet_chars=200, uri=None, scope=None, context_only=false, mode="hybrid"))]
+    #[allow(clippy::too_many_arguments)]
     fn ask(
         &self,
         py: Python<'_>,

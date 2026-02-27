@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 use crate::error;
-use crate::lifecycle::{guard_memvid, PyMemvid};
+use crate::lifecycle::{PyMemvid, guard_memvid};
 
 // ---------------------------------------------------------------------------
 // Helper: enum → snake_case string
@@ -60,9 +60,7 @@ fn doctor_phase_status_str(
     }
 }
 
-fn doctor_action_kind_str(
-    k: &memvid_core::types::verification::DoctorActionKind,
-) -> &'static str {
+fn doctor_action_kind_str(k: &memvid_core::types::verification::DoctorActionKind) -> &'static str {
     use memvid_core::types::verification::DoctorActionKind::*;
     match k {
         HealHeaderPointer => "heal_header_pointer",
@@ -184,7 +182,11 @@ impl From<memvid_core::types::VerificationReport> for PyVerificationReport {
         Self {
             file_path: r.file_path.to_string_lossy().into_owned(),
             overall_status: verification_status_str(&r.overall_status).to_string(),
-            raw_checks: r.checks.into_iter().map(PyVerificationCheck::from).collect(),
+            raw_checks: r
+                .checks
+                .into_iter()
+                .map(PyVerificationCheck::from)
+                .collect(),
         }
     }
 }
@@ -295,7 +297,11 @@ impl From<memvid_core::types::verification::DoctorPhaseReport> for PyDoctorPhase
             phase: doctor_phase_kind_str(&p.phase).to_string(),
             status: doctor_phase_status_str(&p.status).to_string(),
             duration_ms: p.duration_ms,
-            raw_actions: p.actions.into_iter().map(PyDoctorActionReport::from).collect(),
+            raw_actions: p
+                .actions
+                .into_iter()
+                .map(PyDoctorActionReport::from)
+                .collect(),
         }
     }
 }
@@ -408,7 +414,11 @@ impl From<memvid_core::types::verification::DoctorPhasePlan> for PyDoctorPhasePl
     fn from(p: memvid_core::types::verification::DoctorPhasePlan) -> Self {
         Self {
             phase: doctor_phase_kind_str(&p.phase).to_string(),
-            raw_actions: p.actions.into_iter().map(PyDoctorActionPlan::from).collect(),
+            raw_actions: p
+                .actions
+                .into_iter()
+                .map(PyDoctorActionPlan::from)
+                .collect(),
         }
     }
 }
@@ -449,8 +459,18 @@ impl From<memvid_core::types::DoctorPlan> for PyDoctorPlan {
     fn from(p: memvid_core::types::DoctorPlan) -> Self {
         let file_path = p.file_path.to_string_lossy().into_owned();
         let version = p.version;
-        let raw_findings = p.findings.iter().cloned().map(PyDoctorFinding::from).collect();
-        let raw_phases = p.phases.iter().cloned().map(PyDoctorPhasePlan::from).collect();
+        let raw_findings = p
+            .findings
+            .iter()
+            .cloned()
+            .map(PyDoctorFinding::from)
+            .collect();
+        let raw_phases = p
+            .phases
+            .iter()
+            .cloned()
+            .map(PyDoctorPhasePlan::from)
+            .collect();
         Self {
             version,
             file_path,
@@ -518,7 +538,11 @@ impl From<memvid_core::types::DoctorReport> for PyDoctorReport {
         Self {
             status: doctor_status_str(&r.status).to_string(),
             raw_plan: PyDoctorPlan::from(r.plan),
-            raw_phases: r.phases.into_iter().map(PyDoctorPhaseReport::from).collect(),
+            raw_phases: r
+                .phases
+                .into_iter()
+                .map(PyDoctorPhaseReport::from)
+                .collect(),
             raw_findings: r.findings.into_iter().map(PyDoctorFinding::from).collect(),
             raw_metrics: PyDoctorMetrics::from(r.metrics),
             raw_verification: r.verification.map(PyVerificationReport::from),
@@ -603,19 +627,21 @@ impl PyDoctorReport {
 
     #[getter]
     fn verification(&self) -> Option<PyVerificationReport> {
-        self.raw_verification.as_ref().map(|v| PyVerificationReport {
-            file_path: v.file_path.clone(),
-            overall_status: v.overall_status.clone(),
-            raw_checks: v
-                .raw_checks
-                .iter()
-                .map(|c| PyVerificationCheck {
-                    name: c.name.clone(),
-                    status: c.status.clone(),
-                    details: c.details.clone(),
-                })
-                .collect(),
-        })
+        self.raw_verification
+            .as_ref()
+            .map(|v| PyVerificationReport {
+                file_path: v.file_path.clone(),
+                overall_status: v.overall_status.clone(),
+                raw_checks: v
+                    .raw_checks
+                    .iter()
+                    .map(|c| PyVerificationCheck {
+                        name: c.name.clone(),
+                        status: c.status.clone(),
+                        details: c.details.clone(),
+                    })
+                    .collect(),
+            })
     }
 
     fn __repr__(&self) -> String {
@@ -772,6 +798,7 @@ impl PyMemvid {
     /// Run doctor diagnostics and repair on a file.
     #[staticmethod]
     #[pyo3(signature = (path, *, rebuild_time_index=false, rebuild_lex_index=false, rebuild_vec_index=false, vacuum=false, dry_run=false, quiet=false))]
+    #[allow(clippy::too_many_arguments)]
     fn doctor(
         py: Python<'_>,
         path: &str,
@@ -800,6 +827,7 @@ impl PyMemvid {
     /// Generate a doctor plan without executing repairs.
     #[staticmethod]
     #[pyo3(signature = (path, *, rebuild_time_index=false, rebuild_lex_index=false, rebuild_vec_index=false, vacuum=false, dry_run=false, quiet=false))]
+    #[allow(clippy::too_many_arguments)]
     fn doctor_plan(
         py: Python<'_>,
         path: &str,
