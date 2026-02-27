@@ -27,6 +27,8 @@
 - `PutOptions::builder()` + `.build()` for put options; `PutManyOpts { ..Default::default() }` for batch options
 - `cargo test -p memvid-python` fails with DLL_NOT_FOUND (cdylib needs Python runtime); use `cargo check`/`cargo build` for validation
 - `BlobReader` from memvid-core uses `std::io::Read`/`std::io::Seek` traits — its `read()` returns `io::Result`, not `memvid_core::Result`; use `from_io_error` helper
+- `serde_json::Value` → Python: use recursive `value_to_py` helper; `bool.into_pyobject(py)` returns `Borrowed` — call `.to_owned()` before `.into_any().unbind()`
+- `MemvidError::Io` is a struct variant `{ source, path }` — not a tuple; use `MemvidError::Io { source: ..., path: None }`
 
 ---
 
@@ -267,4 +269,20 @@
   - `EnrichmentWorkerStats.queue_depth` maps to PRD's `pending` field; `frames_processed` maps to `processed`
   - The `tracing` crate is not a dependency of memvid-python — don't use `tracing::warn!` in binding code; silently ignore or use `let _ =` pattern
   - PyEnrichmentHandle stores thread in `Mutex<Option<JoinHandle<()>>>` to allow `stop()` to join without consuming self
+---
+
+## 2026-02-28 - US-018
+- Wrapped document reader registry and built-in readers: ReaderRegistry, ReaderOutput, ReaderDiagnostics, preview_chunks
+- Files changed:
+  - Created bindings/python/src/reader.rs (PyReaderDiagnostics, PyReaderOutput, PyReaderRegistry pyclasses, extract method, preview_chunks on PyMemvid, value_to_py helper, guess_format helper, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod reader;` and `reader::register(m)?;`)
+- **Learnings for future iterations:**
+  - `ReaderRegistry` has no top-level `extract` — use `find_reader(&hint)` then `reader.extract(bytes, &hint)` to route to the correct reader
+  - `ReaderRegistry::default()` registers all built-in readers (PDF, DOCX, XLSX, XLS, PPTX, Passthrough) — use this for the Python constructor
+  - `ReaderOutput` contains `document: ExtractedDocument` (text, metadata: serde_json::Value, mime_type) + `reader_name` + `diagnostics` — flatten document fields into the Python wrapper
+  - `serde_json::Value` → Python: `bool.into_pyobject(py)` returns `Borrowed<PyBool>` not `Bound` — need `.to_owned()` before `.into_any().unbind()`
+  - `MemvidError::Io` is a struct variant `{ source, path }` not a tuple variant — use struct literal syntax
+  - `ReaderHint.with_magic()` helps reader selection — pass first 8 bytes of data as magic bytes
+  - `guess_format` helper maps filename extensions and MIME types to `DocumentFormat` — the registry's `find_reader` uses this hint for routing
+  - `preview_chunks` on Memvid takes `&self` (immutable) — only needs read-only guard
 ---
