@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 
+pub mod ask;
 pub mod blob;
 pub mod error;
 pub mod frame;
@@ -22,6 +23,7 @@ fn version() -> String {
 /// Python module for memvid.
 #[pymodule]
 fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    ask::register(m)?;
     blob::register(m)?;
     error::register(m)?;
     frame::register(m)?;

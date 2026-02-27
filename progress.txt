@@ -224,3 +224,19 @@
   - `find_entity`, `frame_entities`, `entities_by_kind` return references (`&MeshNode` / `Vec<&MeshNode>`) — implement `From<&MeshNode>` for the PyMeshNode conversion
   - `follow` returns owned `Vec<FollowResult>` — implement `From<FollowResult>` (not reference)
 ---
+
+## 2026-02-28 - US-015
+- Wrapped ask/RAG operations: ask() method on PyMemvid with AskResponse, AskCitation, AskContextFragment, AskStats pyclasses
+- Files changed:
+  - Created bindings/python/src/ask.rs (PyAskStats, PyAskCitation, PyAskContextFragment, PyAskResponse pyclasses, ask() method on PyMemvid, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod ask;` and `ask::register(m)?;`)
+- **Learnings for future iterations:**
+  - `ask()` method takes generic `Option<&E>` where `E: VecEmbedder` — create a dummy `NoEmbedder` struct and pass `None::<&NoEmbedder>` for basic usage without semantic embeddings
+  - `AskResponse` contains a nested `SearchResponse` — reuse existing `PySearchResponse::from()` conversion via `clone()` since `SearchResponse` derives `Clone`
+  - `AskCitation.chunk_range` is `Option<(usize, usize)>` in Rust — decompose to `chunk_range_start` and `chunk_range_end` as separate Python fields per PRD
+  - `AskContextFragment.matches` maps to `match_count` in Python (same pattern as `SearchHit`)
+  - `AskMode` is `#[serde(rename_all = "snake_case")]` so string values are "lex", "sem", "hybrid"
+  - `AskRetriever` variants: Lex, Semantic, Hybrid, LexFallback, TimelineFallback — all mapped to snake_case strings
+  - All `u128` timing fields (retrieval_ms, synthesis_ms, latency_ms) cast to `u64` for Python compatibility
+  - `AskContextFragmentKind` has just two variants: Full and Summary — map to "full" and "summary" strings
+---
