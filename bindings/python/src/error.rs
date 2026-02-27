@@ -1,10 +1,15 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
+use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::create_exception;
 
-create_exception!(memvid, MemvidError, PyException, "Error raised by memvid operations.");
+create_exception!(
+    memvid,
+    MemvidError,
+    PyException,
+    "Error raised by memvid operations."
+);
 
 /// Map a `memvid_core::MemvidError` variant to a string error code.
 fn error_code(e: &memvid_core::MemvidError) -> &'static str {
@@ -68,9 +73,7 @@ fn error_code(e: &memvid_core::MemvidError) -> &'static str {
 fn error_path(e: &memvid_core::MemvidError) -> Option<String> {
     use memvid_core::MemvidError::*;
     match e {
-        Io {
-            path: Some(p), ..
-        } => Some(p.to_string_lossy().into_owned()),
+        Io { path: Some(p), .. } => Some(p.to_string_lossy().into_owned()),
         Locked(locked) => Some(locked.file.to_string_lossy().into_owned()),
         EncryptedFile { path, .. } => Some(path.to_string_lossy().into_owned()),
         AuxiliaryFileDetected { path } => Some(path.to_string_lossy().into_owned()),
@@ -122,6 +125,12 @@ where
     }
 }
 
+/// Build a `MemvidError` with code `CLOSED` for use when the handle has been
+/// closed or the inner lock is poisoned.
+pub fn closed_error(py: Python<'_>, detail: &str) -> PyErr {
+    build_pyerr(py, detail.to_string(), "CLOSED", None)
+}
+
 /// Register the `MemvidError` exception class on the Python module.
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("MemvidError", m.py().get_type::<MemvidError>())?;
@@ -145,9 +154,7 @@ mod tests {
 
     #[test]
     fn test_checksum_mismatch_maps_to_code() {
-        let err = memvid_core::MemvidError::ChecksumMismatch {
-            context: "header",
-        };
+        let err = memvid_core::MemvidError::ChecksumMismatch { context: "header" };
         assert_eq!(error_code(&err), "CHECKSUM_MISMATCH");
         assert_eq!(error_path(&err), None);
     }
