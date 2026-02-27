@@ -23,6 +23,8 @@
 - Avoid naming a Rust module file `memvid.rs` — it conflicts with `#[pymodule] fn memvid`; use `lifecycle.rs` instead
 - PyO3 `multiple-pymethods` feature (+ `inventory` crate) is required to have multiple `#[pymethods]` blocks for the same `#[pyclass]` across files
 - Write operations need mutable guard: `let mut lock = guard_memvid!(mut self, py); lock.as_mut().unwrap()`
+- `PutOptions::builder()` + `.build()` for put options; `PutManyOpts { ..Default::default() }` for batch options
+- `cargo test -p memvid-python` fails with DLL_NOT_FOUND (cdylib needs Python runtime); use `cargo check`/`cargo build` for validation
 
 ---
 
@@ -82,4 +84,17 @@
   - PyO3 `&[u8]` parameter automatically accepts both Python `bytes` and `bytearray`
   - Write methods (`put_bytes`, `commit`, etc.) need `let mut lock = guard_memvid!(mut self, py)` to get mutable access through the MutexGuard
   - `Memvid::put_bytes` returns `Result<u64>` (frame ID); maps directly to Python `int`
+---
+
+## 2026-02-28 - US-005
+- Wrapped PutOptions, put_bytes_with_options, put_with_embedding, delete_frame, begin_batch, end_batch
+- Files changed:
+  - Modified bindings/python/src/write.rs (added put_bytes_with_options, put_with_embedding, delete_frame, begin_batch, end_batch)
+- **Learnings for future iterations:**
+  - `PutOptions::builder()` provides a fluent builder; set scalar fields via builder, then mutate `tags`/`labels` directly on the built struct
+  - `PutManyOpts` has no builder — construct with struct literal + `..Default::default()`
+  - `FrameRole` uses `#[serde(rename_all = "snake_case")]` — parse from Python string via `serde_json::from_value(Value::String(...))`
+  - `#[pyo3(signature = (data, *, ...))]` makes all args after `*` keyword-only in Python
+  - `begin_batch` takes `PutManyOpts`, `end_batch` takes no args — PRD kwargs map to PutManyOpts fields
+  - `cargo test -p memvid-python` fails with DLL_NOT_FOUND on cdylib — this is expected; use `cargo check` and `cargo build` for validation
 ---
