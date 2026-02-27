@@ -286,3 +286,18 @@
   - `guess_format` helper maps filename extensions and MIME types to `DocumentFormat` — the registry's `find_reader` uses this hint for routing
   - `preview_chunks` on Memvid takes `&self` (immutable) — only needs read-only guard
 ---
+
+## 2026-02-28 - US-019
+- Wrapped verification, doctor, vacuum, and stats operations
+- Files changed:
+  - Created bindings/python/src/maintenance.rs (PyVerificationCheck, PyVerificationReport, PyDoctorFinding, PyDoctorActionReport, PyDoctorPhaseReport, PyDoctorMetrics, PyDoctorActionPlan, PyDoctorPhasePlan, PyDoctorPlan, PyDoctorReport, PyStats pyclasses; verify/doctor/doctor_plan/doctor_apply static methods, vacuum/stats instance methods on PyMemvid, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod maintenance;` and `maintenance::register(m)?;`)
+- **Learnings for future iterations:**
+  - `verify`, `doctor`, `doctor_plan`, `doctor_apply` are static methods on `Memvid` — they take a path string and don't need an open handle
+  - `DoctorPlan` contains the original Rust plan — stash it as `pub(crate) rust_plan: DoctorPlan` (with Clone) for round-tripping through `doctor_apply`
+  - Doctor types form a deep hierarchy: DoctorReport → DoctorPlan → DoctorPhasePlan → DoctorActionPlan, and DoctorPhaseReport → DoctorActionReport — all need the `raw_*` + `#[getter]` pattern for Vec of pyclasses
+  - `PyDoctorActionPlan` needs `#[derive(Clone)]` because it's stored in `Vec` inside `PyDoctorPhasePlan` and cloned in getter methods
+  - All doctor enums use `#[serde(rename_all = "snake_case")]` — match manually to &'static str for Python rather than going through serde
+  - `Stats` has 24 fields including `Tier` enum (Free/Dev/Enterprise) — all map directly to primitive Python types
+  - `vacuum()` is an instance method (`&mut self`) — needs mutable guard; `stats()` is read-only (`&self`)
+---

@@ -6,6 +6,7 @@ pub mod enrichment;
 pub mod error;
 pub mod frame;
 pub mod lifecycle;
+pub mod maintenance;
 pub mod memory;
 pub mod memory_query;
 pub mod mesh;
@@ -32,6 +33,7 @@ fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
     error::register(m)?;
     frame::register(m)?;
     lifecycle::register(m)?;
+    maintenance::register(m)?;
     memory_query::register(m)?;
     mesh::register(m)?;
     payload::register(m)?;
