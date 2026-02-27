@@ -4,6 +4,7 @@ pub mod blob;
 pub mod error;
 pub mod frame;
 pub mod lifecycle;
+pub mod memory;
 pub mod payload;
 pub mod search;
 pub mod timeline;

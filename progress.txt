@@ -167,3 +167,18 @@
   - `blob_reader` and `blob_reader_by_uri` on `Memvid` take `&mut self` — need mutable guard
   - 64 KiB chunk size is a reasonable default for iteration
 ---
+
+## 2026-02-28 - US-011
+- Wrapped memory card CRUD operations: put_memory_card, put_memory_cards, memory_card_count property, clear_memories
+- Files changed:
+  - Created bindings/python/src/memory.rs (put_memory_card, put_memory_cards, memory_card_count, clear_memories methods on PyMemvid)
+  - Modified bindings/python/src/lib.rs (added `pub mod memory;`)
+- **Learnings for future iterations:**
+  - `MemoryCardBuilder` requires `source_frame_id` and `engine`/`engine_version` — for user-facing Python API, use placeholders: `source(0, None)` and `engine("python-api", "1.0.0")`
+  - `MemoryKind::from_str` is available on the core type but returns `Other` for invalid strings — for Python API, validate explicitly and raise `ValueError` for unknown kinds
+  - `Polarity::from_str` returns `Option<Polarity>` — `None` means invalid, map to `ValueError`
+  - `put_memory_cards` takes `Vec<MemoryCard>` — accept `list[dict]` from Python and parse each dict with helper functions (`dict_get_str`, `dict_get_opt_str`, `dict_get_opt_i64`)
+  - `memory_card_count` is a read-only property (`#[getter]`) — uses immutable guard, returns `usize`
+  - `clear_memories` takes `&mut self` in Rust — needs mutable guard in Python wrapper
+  - No new pyclass types needed for US-011 — only the write/count/clear operations; PyMemoryCard will be needed for US-012 (query return values)
+---
