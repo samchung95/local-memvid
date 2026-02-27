@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 pub mod error;
+pub mod frame;
 pub mod lifecycle;
 pub mod search;
 pub mod timeline;
@@ -16,6 +17,7 @@ fn version() -> String {
 #[pymodule]
 fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
     error::register(m)?;
+    frame::register(m)?;
     lifecycle::register(m)?;
     search::register(m)?;
     timeline::register(m)?;

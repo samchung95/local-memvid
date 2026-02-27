@@ -125,3 +125,16 @@
   - `TimelineQuery` has feature-gated `temporal` field like `SearchRequest` — use `#[cfg(feature = "temporal_track")]` in struct literal
   - Simple stories with no complex type conversions can reuse the `From` trait pattern cleanly
 ---
+
+## 2026-02-28 - US-008
+- Wrapped frame metadata access: PyFrame pyclass, frame_by_id, frame_by_uri, frame_count, next_frame_id
+- Files changed:
+  - Created bindings/python/src/frame.rs (PyFrame pyclass with all PRD fields, frame_by_id/frame_by_uri methods, frame_count/next_frame_id properties, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod frame;` and `frame::register(m)?;`)
+- **Learnings for future iterations:**
+  - `Frame.extra_metadata` is `BTreeMap<String, String>` in Rust — convert to `HashMap<String, String>` via `.into_iter().collect()` for the Python wrapper
+  - `CanonicalEncoding` and `FrameRole` enums need manual match arms for string conversion (not serde-based since they're not `rename_all` compatible for this use)
+  - `frame_by_id` and `frame_by_uri` only need immutable guard (no `mut`) since they're read-only operations
+  - `frame_count` returns `usize`, `next_frame_id` returns `u64` — both map directly to Python `int`
+  - `extra_metadata` uses `#[getter]` method (not `#[pyo3(get)]`) to return a cloned HashMap on each access — avoids lifetime issues with frozen pyclass
+---
