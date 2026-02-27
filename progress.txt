@@ -209,3 +209,18 @@
   - Reusing `build_card` from `memory.rs` requires making it `pub(crate)` — avoids duplicating card construction logic in the schema module
   - Dict helper functions (`dict_get_str`, etc.) are duplicated per module since they're not pub — could be moved to a shared utils module in future
 ---
+
+## 2026-02-28 - US-014
+- Wrapped logic mesh entity graph operations: add_mesh_node, add_mesh_nodes, add_mesh_edge, add_mesh_edges, follow, find_entity, frame_entities, entities_by_kind, logic_mesh_stats
+- Files changed:
+  - Created bindings/python/src/mesh.rs (PyMeshNode, PyFollowResult, PyLogicMeshStats pyclasses, 9 methods on PyMemvid, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod mesh;` and `mesh::register(m)?;`)
+- **Learnings for future iterations:**
+  - `MeshNode::new` takes `(canonical_name, display_name, kind, confidence: f32, frame_id, byte_start, byte_len)` — for Python user-facing API, pass frame_id=0 and byte_start=0, byte_len=0 as placeholders
+  - `MeshEdge::new` takes `(from_node: u64, to_node: u64, link: LinkType, confidence: f32, frame_id: FrameId)` — from_node/to_node are node IDs (u64), not names
+  - `LinkType::from_str` is available and accepts flexible aliases (e.g., "manages" → Manager, "member_of" → Member) — use directly for Python string→LinkType conversion
+  - `MeshNode.confidence` is stored as u8 (0-100) internally; use `confidence_f32()` for Python float representation
+  - `LogicMeshStats.entity_kinds` and `link_types` are `HashMap<String, usize>` — use the `raw_*` + `#[getter]` pattern for HashMap fields in frozen pyclasses
+  - `find_entity`, `frame_entities`, `entities_by_kind` return references (`&MeshNode` / `Vec<&MeshNode>`) — implement `From<&MeshNode>` for the PyMeshNode conversion
+  - `follow` returns owned `Vec<FollowResult>` — implement `From<FollowResult>` (not reference)
+---

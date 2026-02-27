@@ -6,6 +6,7 @@ pub mod frame;
 pub mod lifecycle;
 pub mod memory;
 pub mod memory_query;
+pub mod mesh;
 pub mod payload;
 pub mod schema;
 pub mod search;
@@ -26,6 +27,7 @@ fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
     frame::register(m)?;
     lifecycle::register(m)?;
     memory_query::register(m)?;
+    mesh::register(m)?;
     payload::register(m)?;
     schema::register(m)?;
     search::register(m)?;
