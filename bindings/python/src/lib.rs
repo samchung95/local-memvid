@@ -11,6 +11,7 @@ pub mod mesh;
 pub mod payload;
 pub mod schema;
 pub mod search;
+pub mod sketch;
 pub mod timeline;
 pub mod write;
 
@@ -33,6 +34,7 @@ fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
     payload::register(m)?;
     schema::register(m)?;
     search::register(m)?;
+    sketch::register(m)?;
     timeline::register(m)?;
     m.add_function(wrap_pyfunction!(version, m)?)?;
     Ok(())

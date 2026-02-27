@@ -240,3 +240,16 @@
   - All `u128` timing fields (retrieval_ms, synthesis_ms, latency_ms) cast to `u64` for Python compatibility
   - `AskContextFragmentKind` has just two variants: Full and Summary — map to "full" and "summary" strings
 ---
+
+## 2026-02-28 - US-016
+- Wrapped sketch-based fast search: build_all_sketches, find_sketch_candidates, has_sketches, sketch_stats
+- Files changed:
+  - Created bindings/python/src/sketch.rs (PySketchTrackStats pyclass, 4 methods on PyMemvid, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod sketch;` and `sketch::register(m)?;`)
+- **Learnings for future iterations:**
+  - `SketchVariant` is a simple discriminant enum (Small=0, Medium=1, Large=2) — manual match for string conversion, no serde needed
+  - `find_sketch_candidates` returns `Vec<SketchCandidate>` with `frame_id`, `score`, etc. — PRD only wants `list[int]` (frame IDs), so extract `.frame_id` from each candidate
+  - `SketchSearchOptions` is in `memvid_core::memvid::sketch` (not re-exported from types) — use full path for import
+  - `build_all_sketches` needs `&mut self`; `has_sketches`, `sketch_stats`, `find_sketch_candidates` only need `&self`
+  - Simple story — no complex type conversions, just direct wrapping of 4 Rust methods + 1 stats pyclass
+---
