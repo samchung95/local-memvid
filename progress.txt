@@ -182,3 +182,15 @@
   - `clear_memories` takes `&mut self` in Rust — needs mutable guard in Python wrapper
   - No new pyclass types needed for US-011 — only the write/count/clear operations; PyMemoryCard will be needed for US-012 (query return values)
 ---
+
+## 2026-02-28 - US-012
+- Wrapped memory card query methods: get_current_memory, get_entity_memories, get_memory_timeline, get_preferences, aggregate_memory_slot, memories_stats
+- Files changed:
+  - Created bindings/python/src/memory_query.rs (PyMemoryCard, PyMemoriesStats pyclasses, 6 query methods on PyMemvid, register function)
+  - Modified bindings/python/src/lib.rs (added `pub mod memory_query;` and `memory_query::register(m)?;`)
+- **Learnings for future iterations:**
+  - Memory query methods (`get_current_memory`, `get_entity_memories`, etc.) all return references (`&MemoryCard` / `Vec<&MemoryCard>`) — implement `From<&MemoryCard>` (not owned) for the PyMemoryCard conversion
+  - `MemoriesStats.cards_by_kind` is `HashMap<String, usize>` — use the same `raw_*` + `#[getter]` pattern as PyFrame's `extra_metadata` for HashMap fields in frozen pyclasses
+  - All query methods only need immutable guard (`guard_memvid!(self, py)`) since they're read-only
+  - Separate write operations (memory.rs) from query operations (memory_query.rs) for clean module organization
+---

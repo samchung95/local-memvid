@@ -5,6 +5,7 @@ pub mod error;
 pub mod frame;
 pub mod lifecycle;
 pub mod memory;
+pub mod memory_query;
 pub mod payload;
 pub mod search;
 pub mod timeline;
@@ -23,6 +24,7 @@ fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
     error::register(m)?;
     frame::register(m)?;
     lifecycle::register(m)?;
+    memory_query::register(m)?;
     payload::register(m)?;
     search::register(m)?;
     timeline::register(m)?;
