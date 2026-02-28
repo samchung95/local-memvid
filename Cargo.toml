@@ -1,5 +1,5 @@
 [workspace]
-members = ["bindings/node"]
+members = ["bindings/node", "bindings/python"]
 
 [package]
 name = "memvid-core"

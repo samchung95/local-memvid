@@ -1,0 +1,47 @@
+use pyo3::prelude::*;
+
+pub mod ask;
+pub mod blob;
+pub mod enrichment;
+pub mod error;
+pub mod frame;
+pub mod lifecycle;
+pub mod maintenance;
+pub mod memory;
+pub mod memory_query;
+pub mod mesh;
+pub mod payload;
+pub mod reader;
+pub mod schema;
+pub mod search;
+pub mod sketch;
+pub mod timeline;
+pub mod write;
+
+/// Returns the memvid-core version string.
+#[pyfunction]
+fn version() -> String {
+    memvid_core::MEMVID_CORE_VERSION.to_string()
+}
+
+/// Python module for memvid.
+#[pymodule]
+fn memvid(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    ask::register(m)?;
+    blob::register(m)?;
+    enrichment::register(m)?;
+    error::register(m)?;
+    frame::register(m)?;
+    lifecycle::register(m)?;
+    maintenance::register(m)?;
+    memory_query::register(m)?;
+    mesh::register(m)?;
+    payload::register(m)?;
+    reader::register(m)?;
+    schema::register(m)?;
+    search::register(m)?;
+    sketch::register(m)?;
+    timeline::register(m)?;
+    m.add_function(wrap_pyfunction!(version, m)?)?;
+    Ok(())
+}

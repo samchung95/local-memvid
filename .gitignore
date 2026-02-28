@@ -30,6 +30,7 @@ vector_embedding.txt
 *.txt
 # Exception: SymSpell dictionary files needed for PDF text cleanup
 !data/*.txt
+!progress.txt
 *.docx
 *.doc
 *.pptx
@@ -40,6 +41,7 @@ vector_embedding.txt
 *.json
 # Exception: npm platform package manifests for Node.js bindings
 !bindings/node/npm/*/package.json
+!prd.json
 
 models/
 *.DS_Store
