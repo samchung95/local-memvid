@@ -1,0 +1,13 @@
+{
+  "name": "@memvid/node-linux-x64-gnu",
+  "version": "0.1.0",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "main": "memvid-node.linux-x64-gnu.node",
+  "files": ["memvid-node.linux-x64-gnu.node"],
+  "description": "Node.js bindings for memvid — linux x64 gnu",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">= 10"
+  }
+}

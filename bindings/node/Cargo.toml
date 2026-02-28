@@ -1,0 +1,25 @@
+[package]
+name = "memvid-node"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85.0"
+license = "Apache-2.0"
+description = "Node.js bindings for memvid via NAPI-RS"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+memvid-core = { path = "../.." }
+napi = { version = "2", features = ["napi9", "tokio_rt"] }
+napi-derive = "2"
+serde = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["rt"] }
+
+[features]
+temporal_track = ["memvid-core/temporal_track"]
+
+[build-dependencies]
+napi-build = "2"

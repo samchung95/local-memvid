@@ -1,0 +1,379 @@
+{
+  "project": "memvid",
+  "branchName": "ralph/node-bindings",
+  "description": "Node.js bindings for memvid via NAPI-RS — expose full Rust API as a native addon with sync and async variants",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scaffold NAPI-RS project under bindings/node/",
+      "description": "As a contributor, I want the NAPI-RS project scaffolded so that `npm run build` produces a working native addon from the Rust source.",
+      "acceptanceCriteria": [
+        "bindings/node/ contains a valid package.json with name @memvid/node",
+        "Root Cargo.toml updated: workspace.members includes 'bindings/node'",
+        "bindings/node/Cargo.toml has [lib] crate-type = ['cdylib'], depends on memvid-core (path = '../../') and napi/napi-derive",
+        "bindings/node/src/lib.rs exists with a minimal #[napi] function (e.g., pub fn version() -> String)",
+        "package.json has build script: 'napi build --platform --release'",
+        "bindings/node/.gitignore excludes *.node and target/",
+        "cargo build -p memvid-node succeeds (the crate name in Cargo.toml)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Define MemvidError class and error code mapping",
+      "description": "As a Node.js developer, I want rich error types so I can handle failures gracefully with error codes.",
+      "acceptanceCriteria": [
+        "Create bindings/node/src/error.rs with a NapiMemvidError struct",
+        "MemvidError extends JavaScript Error with message, code (string), and optional path fields",
+        "All MemvidError Rust variants mapped to string codes: IO, LOCKED, CHECKSUM_MISMATCH, CAPACITY_EXCEEDED, LEX_NOT_ENABLED, VEC_NOT_ENABLED, CLIP_NOT_ENABLED, ENCRYPTED_FILE, WAL_CORRUPTION, CLOSED, INTERNAL, etc.",
+        "Rust panics caught at NAPI boundary via catch_unwind and converted to MemvidError with code INTERNAL",
+        "Helper function from_memvid_error(e: MemvidError) -> napi::Error implemented for consistent conversion",
+        "Unit test in Rust: verify error code mapping for at least 3 different error variants",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Wrap Memvid lifecycle: create, open, close",
+      "description": "As a Node.js developer, I want to create, open, and close .mv2 files so I can manage memvid stores from JavaScript.",
+      "acceptanceCriteria": [
+        "Create bindings/node/src/memvid.rs with a JsMemvid struct wrapping Mutex<Option<Memvid>>",
+        "JsMemvid is a #[napi] class with constructor marked private",
+        "Static methods: createSync(path: String), openSync(path: String), openReadOnlySync(path: String) — each returns JsMemvid",
+        "Async static methods: create(path: String), open(path: String), openReadOnly(path: String) — each returns Promise<JsMemvid>",
+        "close() method sets inner Mutex to None",
+        "All instance methods check inner is Some, throw MemvidError with code CLOSED if None",
+        "Helper macro or function guard_memvid! that acquires lock and returns &mut Memvid or throws CLOSED",
+        "isReadOnly getter exposed",
+        "path getter exposed returning string",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Wrap basic write operations: putBytes and commit",
+      "description": "As a Node.js developer, I want to write content into a memvid file and flush it to disk.",
+      "acceptanceCriteria": [
+        "putBytesSync(data: Buffer) returns bigint frame ID",
+        "putBytes(data: Buffer) returns Promise<bigint>",
+        "commitSync() flushes WAL to disk",
+        "commit() returns Promise<void>",
+        "commitSkipIndexesSync() commits without rebuilding indexes",
+        "commitSkipIndexes() returns Promise<void>",
+        "finalizeIndexesSync() builds indexes after batch operations",
+        "finalizeIndexes() returns Promise<void>",
+        "Buffer and Uint8Array both accepted for data parameter",
+        "bigint used for frame ID (u64)",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Wrap PutOptions, putBytesWithOptions, and batch/delete",
+      "description": "As a Node.js developer, I want to write content with metadata options and manage frames in batches.",
+      "acceptanceCriteria": [
+        "Define #[napi(object)] JsPutOptions struct with fields: timestamp (Option<i64>), track, kind, uri, title, tags (Vec<String>), labels (Vec<String>), searchText, enableEmbedding (bool), autoTag (bool), dedup (bool), role, sourcePath, noRaw (bool)",
+        "putBytesWithOptionsSync(data: Buffer, options: JsPutOptions) returns bigint",
+        "putBytesWithOptions(data: Buffer, options: JsPutOptions) returns Promise<bigint>",
+        "putWithEmbeddingSync(data: Buffer, embedding: Float32Array) returns bigint",
+        "putWithEmbedding(data: Buffer, embedding: Float32Array) returns Promise<bigint>",
+        "deleteFrameSync(frameId: bigint) returns bigint (new tombstone frame ID)",
+        "deleteFrame(frameId: bigint) returns Promise<bigint>",
+        "beginBatchSync(opts: object) and endBatchSync() for batch mode",
+        "All Option fields in JsPutOptions default to None/false when omitted from JS object",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Wrap search with SearchRequest and SearchResponse types",
+      "description": "As a Node.js developer, I want to search memvid files by text or vector similarity.",
+      "acceptanceCriteria": [
+        "Define #[napi(object)] JsSearchRequest with fields: query (String), topK (u32), snippetChars (u32), uri (Option<String>), scope (Option<String>), cursor (Option<String>), noSketch (bool) — all optional except query, with defaults matching Rust Default impl",
+        "Define #[napi(object)] JsSearchResponse with fields: query, elapsedMs, totalHits, hits (Vec<JsSearchHit>), context, nextCursor, engine",
+        "Define #[napi(object)] JsSearchHit with fields: rank, frameId (bigint), uri, title, text, score (Option<f64>), chunkText, matchCount",
+        "searchSync(request: JsSearchRequest) returns JsSearchResponse",
+        "search(request: JsSearchRequest) returns Promise<JsSearchResponse>",
+        "Pagination via cursor/nextCursor works correctly across calls",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Wrap timeline queries",
+      "description": "As a Node.js developer, I want to scan frames chronologically.",
+      "acceptanceCriteria": [
+        "Define #[napi(object)] JsTimelineQuery with fields: limit (Option<u64>), since (Option<i64>), until (Option<i64>), reverse (bool) — all optional with defaults",
+        "Define #[napi(object)] JsTimelineEntry with fields: frameId (bigint), timestamp (i64), preview (String), uri (Option<String>), childFrames (Vec<bigint>)",
+        "timelineSync(query: JsTimelineQuery) returns Vec<JsTimelineEntry>",
+        "timeline(query: JsTimelineQuery) returns Promise<JsTimelineEntry[]>",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Wrap frame metadata access",
+      "description": "As a Node.js developer, I want to read frame metadata by ID or URI.",
+      "acceptanceCriteria": [
+        "Define #[napi(object)] JsFrame with all public fields: id (bigint), timestamp (i64), kind, track, uri, title, tags, labels, extraMetadata (Record<string, string>), role, canonicalEncoding, searchText",
+        "frameByIdSync(frameId: bigint) returns JsFrame",
+        "frameById(frameId: bigint) returns Promise<JsFrame>",
+        "frameByUriSync(uri: string) returns JsFrame",
+        "frameByUri(uri: string) returns Promise<JsFrame>",
+        "frameCount getter returns number",
+        "nextFrameId getter returns bigint",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Wrap frame payload and text retrieval",
+      "description": "As a Node.js developer, I want to read frame content, text, previews, and embeddings.",
+      "acceptanceCriteria": [
+        "frameCanonicalPayloadSync(frameId: bigint) returns Buffer",
+        "frameCanonicalPayload(frameId: bigint) returns Promise<Buffer>",
+        "frameTextByIdSync(frameId: bigint) returns string",
+        "frameTextById(frameId: bigint) returns Promise<string>",
+        "framePreviewByIdSync(frameId: bigint) returns string",
+        "framePreviewById(frameId: bigint) returns Promise<string>",
+        "frameEmbeddingSync(frameId: bigint) returns Float32Array | null",
+        "frameEmbedding(frameId: bigint) returns Promise<Float32Array | null>",
+        "frameContextSync(frameId: bigint, query: string) returns { text: string, matchCount: number }",
+        "frameContext(frameId: bigint, query: string) returns Promise<{ text: string, matchCount: number }>",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Wrap blobReader as Node.js Readable stream",
+      "description": "As a Node.js developer, I want to stream large frame payloads without loading them entirely into memory.",
+      "acceptanceCriteria": [
+        "blobReader(frameId: bigint) returns a Node.js Readable stream",
+        "blobReaderByUri(uri: string) returns a Node.js Readable stream",
+        "Stream implements backpressure (pauses Rust reads when JS highWaterMark reached)",
+        "Stream emits 'error' event with MemvidError on failure",
+        "Stream works with pipe() to a writable destination",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Wrap memory card CRUD operations",
+      "description": "As a Node.js developer, I want to insert and manage structured memory cards.",
+      "acceptanceCriteria": [
+        "Define #[napi(object)] JsMemoryCard with fields: kind (string enum), entity (String), slot (String), value (String), polarity (Option<string>), eventDate (Option<i64>)",
+        "Define MemoryKind as string enum or const: Fact, Preference, Event, Profile, Relationship, Goal, Other",
+        "putMemoryCardSync(card: JsMemoryCard) returns bigint ID",
+        "putMemoryCard(card: JsMemoryCard) returns Promise<bigint>",
+        "putMemoryCardsSync(cards: JsMemoryCard[]) returns bigint[]",
+        "putMemoryCards(cards: JsMemoryCard[]) returns Promise<bigint[]>",
+        "memoryCardCount getter returns number",
+        "clearMemoriesSync() wipes all cards",
+        "clearMemories() returns Promise<void>",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Wrap memory card query methods",
+      "description": "As a Node.js developer, I want to query memory cards by entity, slot, and timeline.",
+      "acceptanceCriteria": [
+        "getCurrentMemorySync(entity: string, slot: string) returns JsMemoryCard | null",
+        "getCurrentMemory(entity: string, slot: string) returns Promise<JsMemoryCard | null>",
+        "getEntityMemoriesSync(entity: string) returns JsMemoryCard[]",
+        "getEntityMemories(entity: string) returns Promise<JsMemoryCard[]>",
+        "getMemoryTimelineSync(entity: string) returns JsMemoryCard[]",
+        "getMemoryTimeline(entity: string) returns Promise<JsMemoryCard[]>",
+        "getPreferencesSync(entity: string) returns JsMemoryCard[]",
+        "getPreferences(entity: string) returns Promise<JsMemoryCard[]>",
+        "aggregateMemorySlotSync(entity: string, slot: string) returns string[]",
+        "aggregateMemorySlot(entity: string, slot: string) returns Promise<string[]>",
+        "memoriesStats() returns JsMemoriesStats object",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Wrap memory card schema operations",
+      "description": "As a Node.js developer, I want to register and validate schemas for memory cards.",
+      "acceptanceCriteria": [
+        "Define #[napi(object)] JsPredicateSchema with relevant fields from Rust PredicateSchema",
+        "registerSchemaSync(schema: JsPredicateSchema) registers a schema",
+        "registerSchema(schema: JsPredicateSchema) returns Promise<void>",
+        "validateCardSync(card: JsMemoryCard) returns { valid: boolean, error?: string }",
+        "validateCard(card: JsMemoryCard) returns Promise<{ valid: boolean, error?: string }>",
+        "setSchemaStrictSync(strict: boolean) enables/disables strict validation",
+        "inferSchemasSync() returns JsPredicateSchema[] auto-detected from existing cards",
+        "inferSchemas() returns Promise<JsPredicateSchema[]>",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Wrap logic mesh entity graph operations",
+      "description": "As a Node.js developer, I want to build and traverse an entity-relationship graph.",
+      "acceptanceCriteria": [
+        "Define #[napi(object)] JsMeshNode and JsMeshEdge with fields from Rust types",
+        "Define #[napi(object)] JsFollowResult with fields from Rust FollowResult",
+        "addMeshNodeSync(node: JsMeshNode) and addMeshNodesSync(nodes: JsMeshNode[])",
+        "addMeshEdgeSync(edge: JsMeshEdge) and addMeshEdgesSync(edges: JsMeshEdge[])",
+        "followSync(start: string, link: string, hops: number) returns JsFollowResult[]",
+        "follow(start: string, link: string, hops: number) returns Promise<JsFollowResult[]>",
+        "findEntitySync(name: string) returns JsMeshNode | null",
+        "frameEntitiesSync(frameId: bigint) returns JsMeshNode[]",
+        "entitiesByKindSync(kind: string) returns JsMeshNode[]",
+        "logicMeshStats() returns { nodeCount: number, edgeCount: number }",
+        "Typecheck passes"
+      ],
+      "priority": 14,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Wrap ask/RAG operations",
+      "description": "As a Node.js developer, I want to run retrieval-augmented queries for AI-powered Q&A.",
+      "acceptanceCriteria": [
+        "Define #[napi(object)] JsAskRequest with fields: question (String), topK, snippetChars, uri, scope, contextOnly (bool), mode (string)",
+        "Define #[napi(object)] JsAskResponse with fields: question, mode, contextOnly, retrieval (JsSearchResponse), answer (Option<String>), citations, contextFragments, stats",
+        "Define #[napi(object)] JsAskCitation and JsAskContextFragment with relevant fields",
+        "askSync(request: JsAskRequest) returns JsAskResponse",
+        "ask(request: JsAskRequest) returns Promise<JsAskResponse>",
+        "contextOnly: true returns context fragments without LLM answer",
+        "Typecheck passes"
+      ],
+      "priority": 15,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Wrap sketch-based fast search",
+      "description": "As a Node.js developer, I want sketch-based approximate search for fast candidate filtering.",
+      "acceptanceCriteria": [
+        "buildAllSketchesSync(variant: string) returns number (count of sketches built)",
+        "buildAllSketches(variant: string) returns Promise<number>",
+        "findSketchCandidatesSync(query: string, topK: number) returns bigint[] (frame IDs)",
+        "findSketchCandidates(query: string, topK: number) returns Promise<bigint[]>",
+        "hasSketches() returns boolean",
+        "sketchStats() returns JsSketchTrackStats object",
+        "Typecheck passes"
+      ],
+      "priority": 16,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Wrap enrichment worker lifecycle",
+      "description": "As a Node.js developer, I want to start background enrichment workers and track their progress.",
+      "acceptanceCriteria": [
+        "Define #[napi] JsEnrichmentHandle class with stats() and stop() methods",
+        "startEnrichmentWorker(config: object) returns JsEnrichmentHandle",
+        "JsEnrichmentHandle.stats() returns { processed: number, pending: number, errors: number }",
+        "JsEnrichmentHandle.stop() terminates the worker gracefully",
+        "getUnenrichedFramesSync(engineKind: string, engineVersion: string) returns bigint[]",
+        "recordEnrichmentSync(frameId: bigint, engineKind: string, engineVersion: string)",
+        "isFrameEnrichedSync(frameId: bigint, engineKind: string, engineVersion: string) returns boolean",
+        "Typecheck passes"
+      ],
+      "priority": 17,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Wrap document reader registry and built-in readers",
+      "description": "As a Node.js developer, I want to use memvid's built-in document readers to extract text from PDFs, DOCX, XLSX, etc.",
+      "acceptanceCriteria": [
+        "Define #[napi] JsReaderRegistry class with newDefault() static method that includes all built-in readers",
+        "Define #[napi(object)] JsReaderOutput with fields: text (String), metadata (object), format (String)",
+        "JsReaderRegistry.extractSync(data: Buffer, hint: { filename?: string, mimeType?: string }) returns JsReaderOutput",
+        "JsReaderRegistry.extract(data: Buffer, hint: object) returns Promise<JsReaderOutput>",
+        "previewChunksSync(data: Buffer) on JsMemvid returns string[] | null",
+        "previewChunks(data: Buffer) returns Promise<string[] | null>",
+        "Typecheck passes"
+      ],
+      "priority": 18,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Wrap verification, doctor, vacuum, and stats",
+      "description": "As a Node.js developer, I want to verify file integrity, run diagnostics, compact files, and read stats.",
+      "acceptanceCriteria": [
+        "Static verifySync(path: string, deep: boolean) returns JsVerificationReport",
+        "Static verify(path: string, deep: boolean) returns Promise<JsVerificationReport>",
+        "Static doctorSync(path: string, options: object) returns JsDoctorReport",
+        "Static doctor(path: string, options: object) returns Promise<JsDoctorReport>",
+        "Static doctorPlanSync(path: string, options: object) returns JsDoctorPlan",
+        "Static doctorApplySync(path: string, plan: JsDoctorPlan) returns JsDoctorReport",
+        "vacuumSync() compacts the file",
+        "vacuum() returns Promise<void>",
+        "stats() returns JsStats object with all fields: frameCount, sizeBytes, hasLexIndex, hasVecIndex, compressionRatioPercent, etc.",
+        "Typecheck passes"
+      ],
+      "priority": 19,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Configure npm platform packages and CI prebuilt binaries",
+      "description": "As a Node.js developer, I want npm install @memvid/node to just work on my platform without a Rust toolchain.",
+      "acceptanceCriteria": [
+        "NAPI-RS napi.config section in package.json lists targets: linux-x64-gnu, darwin-x64, darwin-arm64, win32-x64-msvc",
+        "package.json has correct main (index.js), types (index.d.ts), napi, and files fields",
+        "index.js loader auto-selects correct platform binary",
+        "Fallback to source build if no prebuilt binary available",
+        "GitHub Actions workflow in .github/workflows/node-bindings.yml builds all 4 targets using napi-rs/napi-action",
+        "CI publishes platform packages to npm on manual workflow_dispatch trigger",
+        "Smoke test step in CI: install from local tarball and run create/put/search cycle",
+        "Typecheck passes"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

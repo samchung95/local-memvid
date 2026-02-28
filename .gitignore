@@ -38,6 +38,8 @@ vector_embedding.txt
 *.xls
 *.csv
 *.json
+# Exception: npm platform package manifests for Node.js bindings
+!bindings/node/npm/*/package.json
 
 models/
 *.DS_Store
